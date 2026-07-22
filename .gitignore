@@ -1,0 +1,23 @@
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local editor / tooling
+.cursor/
+.grok/
+
+# Optional local save dumps (browser uses localStorage; keep folder)
+saves/*
+!saves/.gitkeep
+
+# Deploy tooling caches
+.netlify/
+.vercel/
+dist/
+node_modules/
