@@ -2,7 +2,13 @@
 
 *Weave words from your letter tiles.*
 
-A turn-based 2-player crossword tile game that runs in your browser on localhost. Two players share one screen and take turns building words on a 15×15 grid.
+A turn-based 2-player crossword tile game that runs in your browser. Two players share one screen and take turns building words on a 15×15 grid.
+
+**Play online:** [https://stillworkinglate.github.io/letterloom/](https://stillworkinglate.github.io/letterloom/)
+
+**Source:** [github.com/stillworkinglate/letterloom](https://github.com/stillworkinglate/letterloom)
+
+> Not affiliated with Scrabble, Hasbro, or Mattel. Letterloom is an independent word game.
 
 ## Run locally
 
