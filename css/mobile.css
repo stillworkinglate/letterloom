@@ -1,26 +1,14 @@
-/* Letterloom — mobile & narrow-viewport enhancements
+/* Letterloom — mobile layout (load after style.css)
  *
- * Load AFTER style.css. Desktop (>900px) is intentionally untouched so the
- * two-column layout and default 36px cells from style.css remain.
+ * ≤900px  stacked play, fluid cells
+ * ≤560px  sticky rack, denser chrome
+ * ≤380px  very narrow phones
  *
- * Breakpoints
- *   ≤900px  Tablet / stacked play layout, fluid cell size, panel reorder
- *   ≤560px  Phone density, sticky rack, larger touch targets, setup stacks
- *   ≤380px  Very narrow phones — tighter type and padding
- *
- * Board cell formula (≤900px)
- *   Horizontal budget:
- *     100vw
- *     − 2 × app horizontal padding (--app-pad-x)
- *     − 16px board-container padding (8px each side)
- *     − 14 × --board-gap (gaps between 15 columns)
- *   Then / 15 for one cell. Clamped so cells stay readable (min 18px)
- *   and never exceed the desktop default (36px).
+ * Cell width ≈ (100vw − app padding − board padding − gaps) / 15,
+ * clamped 24–36px.
  */
 
-/* -------------------------------------------------------------------------- */
-/* ≤900px — tablet / stacked layout                                           */
-/* -------------------------------------------------------------------------- */
+/* ≤900px — stacked layout */
 
 @media (max-width: 900px) {
   :root {
@@ -29,7 +17,7 @@
     --board-max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
     /* Fluid board: fit phone/tablet width without horizontal page overflow */
     --cell-size: clamp(
-      18px,
+      24px,
       calc((100vw - 2 * var(--app-pad-x) - 16px - 14 * var(--board-gap)) / 15),
       36px
     );
@@ -113,7 +101,7 @@
 
   /* Scale premium labels & tile glyphs with cell size */
   .board-cell {
-    font-size: clamp(0.4rem, calc(var(--cell-size) * 0.28), 0.55rem);
+    font-size: clamp(0.55rem, calc(var(--cell-size) * 0.28), 0.7rem);
   }
 
   .premium-label {
@@ -133,7 +121,7 @@
   }
 
   .tile-points {
-    font-size: clamp(0.4rem, calc(var(--cell-size) * 0.22), 0.55rem);
+    font-size: clamp(0.5rem, calc(var(--cell-size) * 0.22), 0.65rem);
     right: 2px;
     bottom: 1px;
   }
@@ -215,9 +203,7 @@
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* ≤560px — phones                                                            */
-/* -------------------------------------------------------------------------- */
+/* ≤560px — phones */
 
 @media (max-width: 560px) {
   :root {
@@ -401,9 +387,7 @@
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* ≤380px — very narrow phones                                                */
-/* -------------------------------------------------------------------------- */
+/* ≤380px — very narrow phones */
 
 @media (max-width: 380px) {
   :root {

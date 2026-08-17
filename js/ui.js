@@ -1,6 +1,5 @@
 /**
- * Letterloom game UI — vanilla JS render layer and app controller.
- * Attach to window for plain script tag usage.
+ * Letterloom UI — render layer and app controller.
  */
 (function (global) {
   'use strict';
@@ -8,12 +7,74 @@
   const Engine = global.LetterloomEngine;
   const Storage = global.LetterloomStorage;
 
-  const PREMIUM_LABELS = {
-    TW: 'TW',
-    DW: 'DW',
-    TL: 'TL',
-    DL: 'DL',
+  const PREMIUM_NAMES = {
+    TW: 'triple word score',
+    DW: 'double word score',
+    TL: 'triple letter score',
+    DL: 'double letter score',
   };
+
+  const HOW_TO_PLAY = [
+    'Select a rack tile, then click or activate an empty board square to place it.',
+    'The first word must cover the center starting square.',
+    'New words must connect to tiles already on the board and form a straight line across or down.',
+    'All words formed, including cross-words, must be in the dictionary.',
+    'Blank tiles let you choose any letter when placed.',
+    'Exchange tiles only when at least 7 tiles remain in the bag.',
+    'Playing all 7 tiles in one turn scores a 50-point bonus.',
+  ];
+
+  function describeBoardCell(row, col, placed, pendingDisplay, premium) {
+    const parts = [`Row ${row + 1}, column ${col + 1}`];
+    if (row === Engine.CENTER_ROW && col === Engine.CENTER_COL) {
+      parts.push('center starting square');
+    }
+    if (premium) parts.push(PREMIUM_NAMES[premium] || premium);
+    if (placed) {
+      const letter = formatTileLetter(placed) || '?';
+      const blank = placed.isBlank ? ' blank' : '';
+      const pts = placed.isBlank ? '' : `, ${placed.points} point${placed.points === 1 ? '' : 's'}`;
+      parts.push(`occupied, letter ${letter}${blank}${pts}`);
+    } else if (pendingDisplay) {
+      const letter = formatTileLetter(pendingDisplay) || '?';
+      parts.push(`pending placement, letter ${letter}`);
+    } else {
+      parts.push('empty');
+    }
+    return parts.join(', ');
+  }
+
+  function describeRackTile(tile, selected, exchangeMode) {
+    const letter = formatTileLetter(tile);
+    const parts = [letter ? `Tile ${letter}` : 'Blank tile'];
+    if (!tile.isBlank && tile.points > 0) {
+      parts.push(`${tile.points} point${tile.points === 1 ? '' : 's'}`);
+    }
+    if (selected && exchangeMode) parts.push('marked for exchange');
+    else if (selected) parts.push('selected');
+    return parts.join(', ');
+  }
+
+  function moveGridFocus(row, col, key) {
+    const max = Engine.BOARD_SIZE - 1;
+    if (key === 'ArrowUp') return { row: Math.max(0, row - 1), col };
+    if (key === 'ArrowDown') return { row: Math.min(max, row + 1), col };
+    if (key === 'ArrowLeft') return { row, col: Math.max(0, col - 1) };
+    if (key === 'ArrowRight') return { row, col: Math.min(max, col + 1) };
+    if (key === 'Home') return { row, col: 0 };
+    if (key === 'End') return { row, col: max };
+    if (key === 'PageUp') return { row: 0, col };
+    if (key === 'PageDown') return { row: max, col };
+    return null;
+  }
+
+  function appendHowToPlay(parent) {
+    const list = createElement('ul', 'help-list');
+    HOW_TO_PLAY.forEach((item) => {
+      list.appendChild(createElement('li', null, item));
+    });
+    parent.appendChild(list);
+  }
 
   /** @typedef {{ row: number, col: number, tileId: number, letter?: string }} PendingPlacement */
 
@@ -121,40 +182,54 @@
    * @param {HTMLElement} container
    * @param {object} game
    * @param {PendingPlacement[]} pendingPlacements
-   * @param {{ direction?: string, onCellClick?: Function }} [options]
+   * @param {{ direction?: string, onCellClick?: Function, focusCell?: {row:number,col:number}, onFocusCell?: Function }} [options]
    */
   function renderBoard(container, game, pendingPlacements, options = {}) {
     clearElement(container);
     container.classList.add('letterloom-board');
+    container.id = 'letterloom-board';
     container.setAttribute('role', 'grid');
     container.setAttribute('aria-label', 'Letterloom board');
+    container.setAttribute('aria-rowcount', String(Engine.BOARD_SIZE));
+    container.setAttribute('aria-colcount', String(Engine.BOARD_SIZE));
 
     const pendingMap = new Map(
       (pendingPlacements || []).map((p) => [`${p.row},${p.col}`, p])
     );
 
+    const focusCell = options.focusCell || { row: Engine.CENTER_ROW, col: Engine.CENTER_COL };
+
     for (let row = 0; row < Engine.BOARD_SIZE; row += 1) {
+      const rowEl = createElement('div', 'board-row');
+      rowEl.setAttribute('role', 'row');
+      rowEl.setAttribute('aria-rowindex', String(row + 1));
+
       for (let col = 0; col < Engine.BOARD_SIZE; col += 1) {
         const cell = createElement('button', 'board-cell');
         cell.type = 'button';
         cell.dataset.row = String(row);
         cell.dataset.col = String(col);
-        cell.setAttribute('aria-label', `Row ${row + 1}, column ${col + 1}`);
+        cell.setAttribute('role', 'gridcell');
+        cell.setAttribute('aria-colindex', String(col + 1));
+        cell.tabIndex = row === focusCell.row && col === focusCell.col ? 0 : -1;
 
         const premium = Engine.getPremiumAt(row, col);
         if (premium) {
           cell.classList.add(`premium-${premium.toLowerCase()}`);
-          const label = createElement('span', 'premium-label', PREMIUM_LABELS[premium]);
+          const label = createElement('span', 'premium-label', premium);
+          label.setAttribute('aria-hidden', 'true');
           cell.appendChild(label);
         }
 
         if (row === Engine.CENTER_ROW && col === Engine.CENTER_COL && !game.board[row][col]) {
           const star = createElement('span', 'center-star', '★');
+          star.setAttribute('aria-hidden', 'true');
           cell.appendChild(star);
         }
 
         const placed = game.board[row][col];
         const pending = pendingMap.get(`${row},${col}`);
+        let pendingDisplay = null;
 
         if (placed) {
           cell.classList.add('occupied');
@@ -163,13 +238,18 @@
           cell.classList.add('pending-cell');
           const rackTile = getRackTile(game, pending.tileId);
           if (rackTile) {
-            const displayTile = {
+            pendingDisplay = {
               ...rackTile,
               letter: pending.letter || rackTile.letter,
             };
-            cell.appendChild(renderTileFace(displayTile, { pending: true, small: true }));
+            cell.appendChild(renderTileFace(pendingDisplay, { pending: true, small: true }));
           }
         }
+
+        cell.setAttribute(
+          'aria-label',
+          describeBoardCell(row, col, placed, pendingDisplay, premium)
+        );
 
         if (options.onCellClick) {
           cell.addEventListener('click', () => {
@@ -177,8 +257,27 @@
           });
         }
 
-        container.appendChild(cell);
+        cell.addEventListener('keydown', (event) => {
+          const next = moveGridFocus(row, col, event.key);
+          if (!next) return;
+          event.preventDefault();
+          if (options.onFocusCell) options.onFocusCell(next.row, next.col);
+          const nextEl = container.querySelector(
+            `[data-row="${next.row}"][data-col="${next.col}"]`
+          );
+          if (nextEl) {
+            container.querySelectorAll('.board-cell').forEach((el) => {
+              el.tabIndex = -1;
+            });
+            nextEl.tabIndex = 0;
+            nextEl.focus();
+          }
+        });
+
+        rowEl.appendChild(cell);
       }
+
+      container.appendChild(rowEl);
     }
   }
 
@@ -191,10 +290,13 @@
   function renderRack(container, game, selectedTileIds, options = {}) {
     clearElement(container);
     container.classList.add('letterloom-rack');
+    container.id = 'letterloom-rack';
+    container.setAttribute('role', 'group');
 
     const player = game.players[game.currentPlayerIndex];
     const selected = new Set(selectedTileIds || []);
     const pendingIds = new Set(options.pendingTileIds || []);
+    const labelId = 'rack-player-label';
 
     const slots = createElement('div', 'rack-slots');
     for (let i = 0; i < Engine.RACK_SIZE; i += 1) {
@@ -202,14 +304,16 @@
       const tile = player.rack[i];
 
       if (tile && !pendingIds.has(tile.id)) {
+        const isSelected = selected.has(tile.id);
         const btn = createElement('button', 'rack-tile');
         btn.type = 'button';
         btn.dataset.tileId = String(tile.id);
-        btn.setAttribute('aria-label', `Tile ${formatTileLetter(tile) || 'blank'}`);
-        if (selected.has(tile.id)) btn.classList.add('selected');
+        btn.setAttribute('aria-label', describeRackTile(tile, isSelected, options.exchangeMode));
+        btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        if (isSelected) btn.classList.add('selected');
         if (options.exchangeMode) btn.classList.add('exchange-mode');
 
-        btn.appendChild(renderTileFace(tile, { selected: selected.has(tile.id) }));
+        btn.appendChild(renderTileFace(tile, { selected: isSelected }));
 
         if (options.onTileClick) {
           btn.addEventListener('click', () => options.onTileClick(tile.id));
@@ -228,6 +332,8 @@
       'rack-player-label',
       `${player.name}'s rack`
     );
+    label.id = labelId;
+    container.setAttribute('aria-labelledby', labelId);
     container.appendChild(label);
   }
 
@@ -258,10 +364,17 @@
 
     game.players.forEach((player, index) => {
       const item = createElement('li', 'score-item');
-      if (index === game.currentPlayerIndex && game.status === 'playing') {
+      const isCurrent = index === game.currentPlayerIndex && game.status === 'playing';
+      if (isCurrent) {
         item.classList.add('active-player');
+        item.setAttribute('aria-current', 'true');
       }
-      item.appendChild(createElement('span', 'score-name', player.name));
+      const nameWrap = createElement('span', 'score-name');
+      nameWrap.appendChild(document.createTextNode(player.name));
+      if (isCurrent) {
+        nameWrap.appendChild(createElement('span', 'sr-only', ' (current turn)'));
+      }
+      item.appendChild(nameWrap);
       item.appendChild(createElement('span', 'score-value', String(player.score)));
       list.appendChild(item);
     });
@@ -320,22 +433,29 @@
 
     const playBtn = createElement('button', 'btn btn-primary', 'Play Word');
     playBtn.type = 'button';
+    playBtn.dataset.focusId = 'play';
     playBtn.disabled = !state.canPlay;
+    if (!state.canPlay) {
+      playBtn.setAttribute('aria-describedby', 'play-disabled-reason');
+    }
     playBtn.addEventListener('click', () => callbacks.onPlay && callbacks.onPlay());
     actions.appendChild(playBtn);
 
     const clearBtn = createElement('button', 'btn', 'Clear');
     clearBtn.type = 'button';
+    clearBtn.dataset.focusId = 'clear';
     clearBtn.addEventListener('click', () => callbacks.onClear && callbacks.onClear());
     actions.appendChild(clearBtn);
 
     const passBtn = createElement('button', 'btn', 'Pass');
     passBtn.type = 'button';
+    passBtn.dataset.focusId = 'pass';
     passBtn.addEventListener('click', () => callbacks.onPass && callbacks.onPass());
     actions.appendChild(passBtn);
 
     const shuffleBtn = createElement('button', 'btn', 'Shuffle Rack');
     shuffleBtn.type = 'button';
+    shuffleBtn.dataset.focusId = 'shuffle';
     shuffleBtn.addEventListener('click', () => callbacks.onShuffle && callbacks.onShuffle());
     actions.appendChild(shuffleBtn);
 
@@ -345,26 +465,48 @@
     if (state.exchangeMode) {
       const confirmBtn = createElement('button', 'btn btn-warning', 'Confirm Exchange');
       confirmBtn.type = 'button';
+      confirmBtn.dataset.focusId = 'confirm-exchange';
       confirmBtn.addEventListener('click', () => callbacks.onConfirmExchange && callbacks.onConfirmExchange());
       exchangeSection.appendChild(confirmBtn);
 
       const cancelBtn = createElement('button', 'btn', 'Cancel Exchange');
       cancelBtn.type = 'button';
+      cancelBtn.dataset.focusId = 'cancel-exchange';
       cancelBtn.addEventListener('click', () => callbacks.onCancelExchange && callbacks.onCancelExchange());
       exchangeSection.appendChild(cancelBtn);
     } else {
       const exchangeBtn = createElement('button', 'btn', 'Exchange');
       exchangeBtn.type = 'button';
+      exchangeBtn.dataset.focusId = 'exchange';
       exchangeBtn.disabled = !state.canExchange;
-      exchangeBtn.title =
-        state.bagCount < Engine.MIN_BAG_FOR_EXCHANGE
-          ? `Need at least ${Engine.MIN_BAG_FOR_EXCHANGE} tiles in the bag`
-          : '';
+      if (!state.canExchange) {
+        exchangeBtn.setAttribute('aria-describedby', 'exchange-disabled-reason');
+      }
       exchangeBtn.addEventListener('click', () => callbacks.onExchange && callbacks.onExchange());
       exchangeSection.appendChild(exchangeBtn);
     }
 
     container.appendChild(exchangeSection);
+
+    if (!state.canPlay && !state.exchangeMode) {
+      const playHint = createElement(
+        'p',
+        'sr-only',
+        'Play Word is unavailable until tiles form a valid word.'
+      );
+      playHint.id = 'play-disabled-reason';
+      container.appendChild(playHint);
+    }
+
+    if (state.canExchange === false && !state.exchangeMode) {
+      const exchangeHint = createElement(
+        'p',
+        'control-message',
+        `Need at least ${Engine.MIN_BAG_FOR_EXCHANGE} tiles in the bag to exchange.`
+      );
+      exchangeHint.id = 'exchange-disabled-reason';
+      container.appendChild(exchangeHint);
+    }
 
     if (state.message) {
       container.appendChild(createElement('p', 'control-message', state.message));
@@ -383,12 +525,16 @@
     if (pendingCount === 0) return;
 
     if (direction === 'horizontal') {
-      container.appendChild(createElement('span', 'direction-hint-text', '↔ Across'));
+      const hint = createElement('span', 'direction-hint-text', 'Across');
+      hint.setAttribute('aria-label', 'Playing across');
+      container.appendChild(hint);
       return;
     }
 
     if (direction === 'vertical') {
-      container.appendChild(createElement('span', 'direction-hint-text', '↕ Down'));
+      const hint = createElement('span', 'direction-hint-text', 'Down');
+      hint.setAttribute('aria-label', 'Playing down');
+      container.appendChild(hint);
       return;
     }
 
@@ -469,6 +615,12 @@
     card.appendChild(createElement('h1', 'setup-title', 'Letterloom'));
     card.appendChild(createElement('p', 'setup-tagline', 'Weave words from your letter tiles.'));
 
+    const help = createElement('details', 'setup-help');
+    const helpSummary = createElement('summary', null, 'How to play');
+    help.appendChild(helpSummary);
+    appendHowToPlay(help);
+    card.appendChild(help);
+
     const savedGames = callbacks.savedGames || [];
 
     if (savedGames.length > 0) {
@@ -496,15 +648,15 @@
         const actions = createElement('div', 'setup-save-actions');
         const loadBtn = createElement('button', 'btn btn-primary btn-small', 'Load');
         loadBtn.type = 'button';
+        loadBtn.setAttribute('aria-label', `Load save ${save.name}`);
         loadBtn.addEventListener('click', () => callbacks.onLoadSave && callbacks.onLoadSave(save.id));
         actions.appendChild(loadBtn);
 
         const deleteBtn = createElement('button', 'btn btn-small btn-danger', 'Delete');
         deleteBtn.type = 'button';
+        deleteBtn.setAttribute('aria-label', `Delete save ${save.name}`);
         deleteBtn.addEventListener('click', () => {
-          if (global.confirm(`Delete save "${save.name}"?`)) {
-            callbacks.onDeleteSave && callbacks.onDeleteSave(save.id);
-          }
+          callbacks.onDeleteSave && callbacks.onDeleteSave(save.id, save.name);
         });
         actions.appendChild(deleteBtn);
 
@@ -528,24 +680,28 @@
     });
 
     const field1 = createElement('div', 'form-field');
-    field1.appendChild(createElement('label', null, 'Player 1'));
+    const label1 = createElement('label', null, 'Player 1');
+    label1.htmlFor = 'player1-name';
+    field1.appendChild(label1);
     const input1 = createElement('input', 'setup-input');
     input1.type = 'text';
     input1.id = 'player1-name';
-    input1.placeholder = 'Player 1';
+    input1.name = 'player1';
+    input1.autocomplete = 'nickname';
     input1.maxLength = 20;
-    input1.required = true;
     field1.appendChild(input1);
     form.appendChild(field1);
 
     const field2 = createElement('div', 'form-field');
-    field2.appendChild(createElement('label', null, 'Player 2'));
+    const label2 = createElement('label', null, 'Player 2');
+    label2.htmlFor = 'player2-name';
+    field2.appendChild(label2);
     const input2 = createElement('input', 'setup-input');
     input2.type = 'text';
     input2.id = 'player2-name';
-    input2.placeholder = 'Player 2';
+    input2.name = 'player2';
+    input2.autocomplete = 'nickname';
     input2.maxLength = 20;
-    input2.required = true;
     field2.appendChild(input2);
     form.appendChild(field2);
 
@@ -558,9 +714,12 @@
     if (callbacks.onImport) {
       const importSection = createElement('div', 'setup-import');
       const importLabel = createElement('label', 'btn btn-secondary setup-import-btn', 'Import Save File');
+      importLabel.htmlFor = 'import-save-file';
       const importInput = createElement('input', 'setup-import-input');
       importInput.type = 'file';
+      importInput.id = 'import-save-file';
       importInput.accept = '.json,application/json';
+      importInput.setAttribute('aria-describedby', 'import-save-hint');
       importInput.addEventListener('change', async () => {
         const file = importInput.files && importInput.files[0];
         importInput.value = '';
@@ -573,16 +732,19 @@
       });
       importLabel.appendChild(importInput);
       importSection.appendChild(importLabel);
-      importSection.appendChild(
-        createElement('p', 'setup-import-hint', 'Load a .json save from the saves/ folder or a download.')
+      const importHint = createElement(
+        'p',
+        'setup-import-hint',
+        'Load a .json save from the saves/ folder or a download.'
       );
+      importHint.id = 'import-save-hint';
+      importSection.appendChild(importHint);
       card.appendChild(importSection);
     }
 
     container.appendChild(card);
 
-    // Skip autofocus on coarse-pointer / touch devices so the on-screen
-    // keyboard does not open and jump the viewport on phones.
+    // Avoid autofocus on touch so the OSK does not jump the viewport.
     if (
       typeof global.matchMedia === 'function' &&
       global.matchMedia('(pointer: fine)').matches
@@ -613,18 +775,29 @@
 
     const saveBtn = createElement('button', 'btn btn-primary', 'Save');
     saveBtn.type = 'button';
+    saveBtn.dataset.focusId = 'save';
     saveBtn.addEventListener('click', () => callbacks.onSave && callbacks.onSave());
     actions.appendChild(saveBtn);
 
     const newGameBtn = createElement('button', 'btn', 'New Game');
     newGameBtn.type = 'button';
+    newGameBtn.dataset.focusId = 'new-game';
     newGameBtn.addEventListener('click', () => callbacks.onNewGame && callbacks.onNewGame());
     actions.appendChild(newGameBtn);
 
     const exportBtn = createElement('button', 'btn btn-secondary', 'Export JSON');
     exportBtn.type = 'button';
+    exportBtn.dataset.focusId = 'export';
     exportBtn.addEventListener('click', () => callbacks.onExport && callbacks.onExport());
     actions.appendChild(exportBtn);
+
+    if (callbacks.onHelp) {
+      const helpBtn = createElement('button', 'btn', 'How to Play');
+      helpBtn.type = 'button';
+      helpBtn.dataset.focusId = 'help';
+      helpBtn.addEventListener('click', () => callbacks.onHelp());
+      actions.appendChild(helpBtn);
+    }
 
     container.appendChild(actions);
   }
@@ -639,7 +812,9 @@
     container.classList.add('game-over-modal');
 
     const card = createElement('div', 'game-over-card');
-    card.appendChild(createElement('h2', 'game-over-title', 'Game Over'));
+    const title = createElement('h2', 'game-over-title', 'Game Over');
+    title.id = 'game-over-title';
+    card.appendChild(title);
 
     const reasonText =
       game.endReason === 'last_tile_played'
@@ -704,13 +879,34 @@
     /** @type {number[]} */
     let exchangeTileIds = [];
     let message = '';
+    let boardFocus = { row: Engine.CENTER_ROW, col: Engine.CENTER_COL };
+    /** @type {{ kind: string, row?: number, col?: number, tileId?: number, id?: string }|null} */
+    let lastFocus = null;
+    let lastAnnouncedTurn = '';
+    let dialogOpen = false;
+
+    const skipNav = createElement('nav', 'skip-nav');
+    skipNav.setAttribute('aria-label', 'Skip links');
+    const skipRack = createElement('a', 'skip-link', 'Skip to rack');
+    skipRack.href = '#letterloom-rack';
+    const skipControls = createElement('a', 'skip-link', 'Skip to controls');
+    skipControls.href = '#letterloom-controls';
+    skipNav.appendChild(skipRack);
+    skipNav.appendChild(skipControls);
+
+    const livePolite = createElement('div', 'sr-only');
+    livePolite.setAttribute('aria-live', 'polite');
+    livePolite.setAttribute('aria-atomic', 'true');
+    const liveAssertive = createElement('div', 'sr-only');
+    liveAssertive.setAttribute('role', 'alert');
 
     const setupEl = createElement('div', 'app-setup');
+    setupEl.setAttribute('role', 'main');
     const gameEl = createElement('div', 'app-game hidden');
+    gameEl.setAttribute('role', 'main');
     const overlayEl = createElement('div', 'app-overlay hidden');
+    const dialogHost = createElement('div', 'app-dialog-host hidden');
 
-    // board-scroll wraps the grid so mobile CSS can overflow-scroll the board
-    // without fighting renderBoard (which clears/reuses boardContainer).
     const boardScroll = createElement('div', 'board-scroll');
     const boardContainer = createElement('div', 'board-container');
     boardScroll.appendChild(boardContainer);
@@ -719,12 +915,17 @@
     const statusContainer = createElement('div', 'status-container');
     const previewContainer = createElement('div', 'preview-container');
     const controlsContainer = createElement('div', 'controls-container');
+    controlsContainer.id = 'letterloom-controls';
     const saveContainer = createElement('div', 'save-container');
     const messageEl = createElement('div', 'app-message hidden');
+    messageEl.setAttribute('role', 'status');
+    messageEl.setAttribute('aria-live', 'polite');
+    messageEl.setAttribute('aria-atomic', 'true');
     let activeSaveId = null;
     let activeSaveName = null;
     let lastSavedAt = null;
 
+    const gameTitle = createElement('h1', 'sr-only', 'Letterloom');
     const mainArea = createElement('div', 'game-main');
     const boardArea = createElement('div', 'board-area');
     boardArea.appendChild(boardScroll);
@@ -733,18 +934,198 @@
     mainArea.appendChild(boardArea);
 
     const sidebar = createElement('div', 'game-sidebar');
-    sidebar.appendChild(statusContainer);
-    sidebar.appendChild(previewContainer);
+    sidebar.setAttribute('aria-label', 'Game controls and status');
     sidebar.appendChild(controlsContainer);
+    sidebar.appendChild(previewContainer);
+    sidebar.appendChild(statusContainer);
     sidebar.appendChild(saveContainer);
     mainArea.appendChild(sidebar);
 
+    gameEl.appendChild(gameTitle);
     gameEl.appendChild(mainArea);
     gameEl.appendChild(messageEl);
 
+    root.appendChild(skipNav);
+    root.appendChild(livePolite);
+    root.appendChild(liveAssertive);
     root.appendChild(setupEl);
     root.appendChild(gameEl);
     root.appendChild(overlayEl);
+    root.appendChild(dialogHost);
+
+    function announce(text, assertive = false) {
+      if (!text) return;
+      const region = assertive ? liveAssertive : livePolite;
+      region.textContent = '';
+      global.requestAnimationFrame(() => {
+        region.textContent = text;
+      });
+    }
+
+    function rememberFocus() {
+      const el = global.document && global.document.activeElement;
+      if (!el || !root.contains(el)) return;
+      if (el.classList.contains('board-cell')) {
+        lastFocus = { kind: 'cell', row: Number(el.dataset.row), col: Number(el.dataset.col) };
+      } else if (el.classList.contains('rack-tile')) {
+        lastFocus = { kind: 'rack', tileId: Number(el.dataset.tileId) };
+      } else if (el.dataset.focusId) {
+        lastFocus = { kind: 'id', id: el.dataset.focusId };
+      }
+    }
+
+    function restoreFocus() {
+      if (!lastFocus || dialogOpen) return;
+      let el = null;
+      if (lastFocus.kind === 'cell') {
+        el = boardContainer.querySelector(
+          `[data-row="${lastFocus.row}"][data-col="${lastFocus.col}"]`
+        );
+      } else if (lastFocus.kind === 'rack') {
+        el = rackContainer.querySelector(`[data-tile-id="${lastFocus.tileId}"]`);
+      } else if (lastFocus.kind === 'id') {
+        el = root.querySelector(`[data-focus-id="${lastFocus.id}"]`);
+      }
+      if (el) el.focus();
+    }
+
+    function getFocusable(container) {
+      return Array.from(
+        container.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select, textarea, summary, [tabindex]:not([tabindex="-1"])'
+        )
+      );
+    }
+
+    function openModal(config) {
+      return new Promise((resolve) => {
+        dialogOpen = true;
+        clearElement(dialogHost);
+        dialogHost.classList.remove('hidden');
+
+        const backdrop = createElement('div', 'app-overlay');
+        const dialog = createElement('div', 'app-dialog');
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'letterloom-dialog-title');
+
+        const title = createElement('h2', 'app-dialog-title', config.title);
+        title.id = 'letterloom-dialog-title';
+        dialog.appendChild(title);
+
+        if (config.message) {
+          const msg = createElement('p', 'app-dialog-message', config.message);
+          msg.id = 'letterloom-dialog-desc';
+          dialog.setAttribute('aria-describedby', msg.id);
+          dialog.appendChild(msg);
+        }
+
+        let input = null;
+        if (config.mode === 'prompt') {
+          const field = createElement('div', 'form-field');
+          const label = createElement('label', null, config.inputLabel || 'Name');
+          label.htmlFor = 'letterloom-dialog-input';
+          input = createElement('input', 'setup-input');
+          input.id = 'letterloom-dialog-input';
+          input.type = 'text';
+          input.value = config.inputDefault || '';
+          input.maxLength = config.maxLength || 40;
+          field.appendChild(label);
+          field.appendChild(input);
+          dialog.appendChild(field);
+        }
+
+        if (config.mode === 'letters') {
+          const picker = createElement('div', 'letter-picker');
+          picker.setAttribute('role', 'group');
+          picker.setAttribute('aria-label', 'Choose a letter');
+          for (let i = 0; i < 26; i += 1) {
+            const letter = String.fromCharCode(65 + i);
+            const btn = createElement('button', 'btn', letter);
+            btn.type = 'button';
+            btn.setAttribute('aria-label', `Letter ${letter}`);
+            btn.addEventListener('click', () => close(letter));
+            picker.appendChild(btn);
+          }
+          dialog.appendChild(picker);
+        }
+
+        if (config.body) {
+          dialog.appendChild(config.body);
+        }
+
+        const actions = createElement('div', 'app-dialog-actions');
+        const cancelBtn = createElement('button', 'btn', config.cancelLabel || 'Cancel');
+        cancelBtn.type = 'button';
+        cancelBtn.addEventListener('click', () => close(config.mode === 'confirm' ? false : null));
+        actions.appendChild(cancelBtn);
+
+        if (config.mode !== 'letters' && config.mode !== 'info') {
+          const confirmBtn = createElement(
+            'button',
+            config.danger ? 'btn btn-danger' : 'btn btn-primary',
+            config.confirmLabel || 'OK'
+          );
+          confirmBtn.type = 'button';
+          confirmBtn.addEventListener('click', () => {
+            if (config.mode === 'prompt') {
+              close((input && input.value.trim()) || config.inputDefault || '');
+              return;
+            }
+            close(true);
+          });
+          actions.appendChild(confirmBtn);
+        }
+
+        dialog.appendChild(actions);
+        backdrop.appendChild(dialog);
+        dialogHost.appendChild(backdrop);
+
+        setupEl.inert = true;
+        gameEl.inert = true;
+        overlayEl.inert = true;
+
+        function close(value) {
+          global.document.removeEventListener('keydown', onKey);
+          dialogHost.classList.add('hidden');
+          clearElement(dialogHost);
+          setupEl.inert = false;
+          gameEl.inert = Boolean(game && game.status === 'ended');
+          overlayEl.inert = false;
+          dialogOpen = false;
+          resolve(value);
+          restoreFocus();
+        }
+
+        function onKey(event) {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            close(config.mode === 'confirm' ? false : null);
+            return;
+          }
+          if (event.key !== 'Tab') return;
+          const focusable = getFocusable(dialog);
+          if (focusable.length === 0) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && global.document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && global.document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+
+        global.document.addEventListener('keydown', onKey);
+
+        const initial =
+          input ||
+          dialog.querySelector(config.mode === 'letters' ? '.letter-picker button' : '.btn-primary') ||
+          cancelBtn;
+        if (initial) initial.focus();
+      });
+    }
 
     function showMessage(text, isError = false) {
       message = text;
@@ -752,6 +1133,7 @@
         messageEl.textContent = text;
         messageEl.classList.remove('hidden');
         messageEl.classList.toggle('error', isError);
+        announce(text, isError);
       } else {
         messageEl.classList.add('hidden');
         messageEl.textContent = '';
@@ -768,20 +1150,19 @@
     }
 
     function promptBlankLetter() {
-      let letter = '';
-      while (!letter) {
-        const input = global.prompt('Blank tile — enter a letter (A–Z):', 'A');
-        if (input === null) return null;
-        const upper = input.trim().toUpperCase();
-        if (upper.length === 1 && upper >= 'A' && upper <= 'Z') {
-          letter = upper;
-        }
-      }
-      return letter;
+      return openModal({
+        mode: 'letters',
+        title: 'Blank tile',
+        message: 'Choose the letter this blank should represent.',
+        cancelLabel: 'Cancel',
+      });
     }
 
-    function handleBoardClick(row, col) {
-      if (!game || game.status !== 'playing' || exchangeMode) return;
+    async function handleBoardClick(row, col) {
+      if (!game || game.status !== 'playing' || exchangeMode || dialogOpen) return;
+
+      boardFocus = { row, col };
+      lastFocus = { kind: 'cell', row, col };
 
       const existingPending = pendingAt(pendingPlacements, row, col);
       if (existingPending) {
@@ -807,7 +1188,7 @@
       const placement = { row, col, tileId: selectedTileId };
 
       if (rackTile.isBlank) {
-        const letter = promptBlankLetter();
+        const letter = await promptBlankLetter();
         if (!letter) return;
         placement.letter = letter;
       }
@@ -842,6 +1223,7 @@
       if (!game || exchangeMode) return;
       const player = game.players[game.currentPlayerIndex];
       Engine.shuffleInPlace(player.rack);
+      announce('Rack shuffled.');
       refresh();
     }
 
@@ -988,6 +1370,8 @@
       setupEl.classList.add('hidden');
       gameEl.classList.remove('hidden');
       overlayEl.classList.add('hidden');
+      gameEl.inert = game.status === 'ended';
+      lastAnnouncedTurn = '';
 
       if (game.status === 'ended') {
         showGameOver();
@@ -1011,8 +1395,17 @@
       restoreFromSnapshot(snapshot, saveId);
     }
 
-    function deleteSavedGame(saveId) {
+    async function deleteSavedGame(saveId, saveName) {
       if (!Storage) return;
+      const confirmed = await openModal({
+        mode: 'confirm',
+        title: 'Delete save',
+        message: `Delete save "${saveName || 'this game'}"? This cannot be undone.`,
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      if (!confirmed) return;
       Storage.deleteSave(saveId);
       if (activeSaveId === saveId) {
         activeSaveId = null;
@@ -1031,15 +1424,23 @@
       showMessage(`Imported "${result.snapshot.name}".`);
     }
 
-    function handleSave() {
+    async function handleSave() {
       if (!game || !Storage) return;
 
       let name = activeSaveName;
       if (!activeSaveId) {
         const defaultName = Storage.buildDefaultName(game);
-        const input = global.prompt('Name this save:', defaultName);
+        const input = await openModal({
+          mode: 'prompt',
+          title: 'Save game',
+          message: 'Name this save so you can find it later.',
+          inputLabel: 'Save name',
+          inputDefault: defaultName,
+          confirmLabel: 'Save',
+          cancelLabel: 'Cancel',
+        });
         if (input === null) return;
-        name = input.trim() || defaultName;
+        name = String(input).trim() || defaultName;
       }
 
       const result = Storage.saveGame(game, getUiState(), {
@@ -1059,14 +1460,16 @@
       refresh();
     }
 
-    function handleNewGame() {
-      if (
-        game &&
-        game.status === 'playing' &&
-        !activeSaveId &&
-        !global.confirm('Start a new game without saving?')
-      ) {
-        return;
+    async function handleNewGame() {
+      if (game && game.status === 'playing' && !activeSaveId) {
+        const confirmed = await openModal({
+          mode: 'confirm',
+          title: 'Start a new game',
+          message: 'Start a new game without saving? The current game will be lost.',
+          confirmLabel: 'New Game',
+          cancelLabel: 'Cancel',
+        });
+        if (!confirmed) return;
       }
 
       game = null;
@@ -1075,6 +1478,9 @@
       lastSavedAt = null;
       resetTurnState();
       overlayEl.classList.add('hidden');
+      overlayEl.removeAttribute('role');
+      overlayEl.removeAttribute('aria-modal');
+      gameEl.inert = false;
       gameEl.classList.add('hidden');
       showSetup();
     }
@@ -1096,16 +1502,31 @@
         onNewGame: handleNewGame,
       });
       overlayEl.classList.remove('hidden');
+      overlayEl.setAttribute('role', 'dialog');
+      overlayEl.setAttribute('aria-modal', 'true');
+      overlayEl.setAttribute('aria-labelledby', 'game-over-title');
+      gameEl.inert = true;
+      const winner = game.players.slice().sort((a, b) => b.score - a.score)[0];
+      announce(`Game over. ${winner ? `${winner.name} wins with ${winner.score} points.` : ''}`, true);
+      const btn = overlayEl.querySelector('button');
+      if (btn) btn.focus();
     }
 
     function refresh() {
       if (!game) return;
+
+      rememberFocus();
 
       const resolved = resolvePlacementDirection(game, pendingPlacements);
       const direction = resolved.direction;
 
       renderBoard(boardContainer, game, pendingPlacements, {
         onCellClick: handleBoardClick,
+        focusCell: boardFocus,
+        onFocusCell: (row, col) => {
+          boardFocus = { row, col };
+          lastFocus = { kind: 'cell', row, col };
+        },
       });
 
       renderRack(
@@ -1155,9 +1576,32 @@
         onSave: handleSave,
         onNewGame: handleNewGame,
         onExport: handleExport,
+        onHelp: handleHelp,
       });
 
       persistState();
+
+      if (game.status === 'playing') {
+        const current = game.players[game.currentPlayerIndex];
+        const turnKey = `${game.currentPlayerIndex}-${game.turnNumber}`;
+        if (turnKey !== lastAnnouncedTurn) {
+          lastAnnouncedTurn = turnKey;
+          announce(`${current.name}'s turn. Turn ${game.turnNumber}.`);
+        }
+      }
+
+      restoreFocus();
+    }
+
+    function handleHelp() {
+      const body = createElement('div');
+      appendHowToPlay(body);
+      openModal({
+        mode: 'info',
+        title: 'How to play',
+        body,
+        cancelLabel: 'Close',
+      });
     }
 
     function startGame(playerNames) {
@@ -1170,8 +1614,11 @@
       setupEl.classList.add('hidden');
       gameEl.classList.remove('hidden');
       overlayEl.classList.add('hidden');
+      gameEl.inert = false;
+      boardFocus = { row: Engine.CENTER_ROW, col: Engine.CENTER_COL };
+      lastAnnouncedTurn = '';
       const first = game.players[game.currentPlayerIndex];
-      showMessage(`${first.name} goes first — the first word must cover the center ★.`);
+      showMessage(`${first.name} goes first — the first word must cover the center starting square.`);
       refresh();
     }
 
@@ -1193,7 +1640,10 @@
       setupEl.classList.remove('hidden');
       gameEl.classList.add('hidden');
       clearElement(setupEl);
-      setupEl.appendChild(createElement('p', 'setup-loading', 'Loading dictionary…'));
+      const loading = createElement('p', 'setup-loading', 'Loading dictionary…');
+      loading.setAttribute('role', 'status');
+      loading.setAttribute('aria-live', 'polite');
+      setupEl.appendChild(loading);
 
       if (options.dictionaryUrl && !options.dictionary) {
         try {
@@ -1236,7 +1686,15 @@
         const card = setupEl.querySelector('.setup-card');
         if (card) {
           const err = createElement('p', 'setup-error', importError);
+          err.id = 'import-error';
+          err.setAttribute('role', 'alert');
           card.insertBefore(err, card.children[1] || null);
+          const importInput = setupEl.querySelector('#import-save-file');
+          if (importInput) {
+            importInput.setAttribute('aria-invalid', 'true');
+            importInput.setAttribute('aria-describedby', 'import-error import-save-hint');
+          }
+          announce(importError, true);
         }
       }
     }

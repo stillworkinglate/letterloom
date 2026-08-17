@@ -8,7 +8,13 @@ A turn-based 2-player crossword tile game that runs in your browser. Two players
 
 **Source:** [github.com/stillworkinglate/letterloom](https://github.com/stillworkinglate/letterloom)
 
-> Not affiliated with Scrabble, Hasbro, or Mattel. Letterloom is an independent word game.
+> Not affiliated with Scrabble, Hasbro, Mattel, or Zynga. Independent personal project.
+
+## License
+
+Code is [MIT](LICENSE). That license does not cover trademarks or official tournament word lists.
+
+Keep `data/words.txt` as a free lexicon (e.g. public-domain ENABLE / WORD.LST). Do not ship NASPA OTCWL, Collins CSW, or other proprietary dictionaries.
 
 ## Run locally
 
@@ -17,7 +23,7 @@ You need a local web server so the game can load the word dictionary. Opening `i
 ### Option 1: Python (recommended)
 
 ```bash
-cd /path/to/scrabble
+cd /path/to/letterloom
 python3 -m http.server 8080
 ```
 
@@ -147,7 +153,7 @@ TW  .   .  DL  .   .   .  TW  .   .   .  DL  .   .  TW
 ## Rules implemented
 
 - Standard 15×15 board with TW, DW, TL, and DL premium squares
-- 100-tile bag with official letter counts and point values
+- 100-tile bag with standard English letter counts and point values
 - Automatic scoring with letter and word multipliers (new tiles only)
 - +50 bingo bonus for playing all 7 tiles in one turn
 - Exchange allowed only when 7+ tiles remain in the bag
@@ -159,20 +165,38 @@ TW  .   .  DL  .   .   .  TW  .   .   .  DL  .   .  TW
 ## Project structure
 
 ```
-scrabble/
-├── index.html          # Entry point
-├── css/style.css       # Board and UI styling
-├── js/
-│   ├── engine.js       # Game logic, validation, scoring
-│   ├── storage.js      # Auto-save, JSON export/import
-│   └── ui.js           # Turn-based UI for same-screen play
-├── data/
-│   └── words.txt       # Dictionary (~178k words)
-├── saves/              # Store exported .json save files here
-└── README.md
+letterloom/
+├── index.html
+├── LICENSE
+├── css/style.css
+├── css/mobile.css
+├── js/engine.js
+├── js/storage.js
+├── js/ui.js
+├── data/words.txt      # ~178k free lexicon words
+└── saves/              # optional exported JSON backups
 ```
 
 ---
+
+## Open-source notes
+
+Not legal advice. Short version for keeping this public and free:
+
+| Topic | Practical rule |
+|--------|----------------|
+| Rules / scoring | U.S. copyright does not cover game methods of play. Your original code is MIT. |
+| Name | “Scrabble” is a Hasbro/Mattel trademark. Do not use it as the product name, title, or marketing. |
+| Art | Do not copy official box art or logos. |
+| Word list | Use a free lexicon (ENABLE). Do not redistribute NASPA/Collins lists. |
+| Money | Not selling helps; it does not make trademark misuse OK. Do not advertise this as Scrabble. |
+
+## Accessibility
+
+- Board: arrow keys move one focused cell; Tab leaves the grid after that cell
+- Skip links to rack and controls; focus rings; live announcements for turns and errors
+- Blank letter, save name, delete, and game over use in-app dialogs (not `prompt` / `confirm`)
+- **How to Play** on the start screen and in the sidebar during a game
 
 ## Troubleshooting
 
