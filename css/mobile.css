@@ -1,6 +1,6 @@
 /* Letterloom — mobile layout (load after style.css)
  *
- * ≤900px  stacked play, fluid cells
+ * ≤1000px stacked play, fluid cells
  * ≤560px  sticky rack, denser chrome
  * ≤380px  very narrow phones
  *
@@ -8,9 +8,9 @@
  * clamped 24–36px.
  */
 
-/* ≤900px — stacked layout */
+/* ≤1000px — stacked layout */
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   :root {
     --app-pad-x: 1rem;
     --app-pad-y: 1rem;
@@ -21,6 +21,8 @@
       calc((100vw - 2 * var(--app-pad-x) - 16px - 14 * var(--board-gap)) / 15),
       36px
     );
+    /* Larger than board cells, but not stretched to the 15-wide grid. */
+    --rack-tile-size: 42px;
   }
 
   .letterloom-app {
@@ -130,20 +132,38 @@
     border-radius: 3px;
   }
 
-  /* Controls: wrap cleanly; primary action stands out */
+  .letterloom-rack {
+    align-items: center;
+  }
+
+  .rack-slots {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 8px;
+  }
+
+  .rack-slot {
+    width: var(--rack-tile-size);
+    flex: 0 0 var(--rack-tile-size);
+  }
+
+  .rack-tile .tile-face {
+    width: var(--rack-tile-size);
+    height: var(--rack-tile-size);
+  }
+
+  .rack-tile .tile-letter {
+    font-size: clamp(1rem, calc(var(--rack-tile-size) * 0.52), 1.35rem);
+  }
+
+  /* Controls: 2-col grid from style.css; keep primary spanning full width */
   .control-actions,
-  .exchange-section {
-    gap: 0.5rem;
-  }
-
-  .control-actions .btn-primary {
-    flex: 1 1 100%;
-  }
-
-  .control-actions .btn:not(.btn-primary),
-  .exchange-section .btn {
-    flex: 1 1 auto;
-    min-width: calc(50% - 0.25rem);
+  .exchange-section,
+  .save-actions {
+    gap: 0.45rem;
   }
 
   /* Setup / headings — slightly tighter */
@@ -209,6 +229,7 @@
   :root {
     --app-pad-x: 0.65rem;
     --app-pad-y: 0.65rem;
+    --rack-tile-size: 42px;
   }
 
   .letterloom-app {
@@ -254,8 +275,8 @@
   }
 
   .rack-slots {
-    gap: 4px;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 7px 8px;
   }
 
   .rack-player-label {
@@ -264,28 +285,11 @@
     font-size: 0.8rem;
   }
 
-  /* Touch density: style.css already sets ~44px buttons; reinforce layout only */
-  .control-actions .btn-primary {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-
-  .control-actions .btn:not(.btn-primary) {
-    flex: 1 1 calc(50% - 0.25rem);
-    min-width: calc(50% - 0.25rem);
-  }
-
-  .exchange-section .btn {
-    flex: 1 1 calc(50% - 0.25rem);
-    min-width: calc(50% - 0.25rem);
-  }
-
-  .save-actions {
-    gap: 0.5rem;
-  }
-
+  /* Touch density: style.css already sets ~44px buttons and a 2-col grid */
+  .control-actions .btn,
+  .exchange-section .btn,
   .save-actions .btn {
-    flex: 1 1 auto;
+    font-size: 0.85rem;
   }
 
   /* Setup screen */
@@ -393,6 +397,10 @@
   :root {
     --app-pad-x: 0.5rem;
     --app-pad-y: 0.5rem;
+    --rack-tile-size: min(
+      40px,
+      calc((100vw - 2 * var(--app-pad-x) - 16px - 30px) / 7)
+    );
   }
 
   .setup-title {
@@ -404,14 +412,15 @@
   }
 
   .rack-slots {
-    gap: 3px;
-    padding: 6px 8px;
+    gap: 4px;
+    padding: 7px 8px;
   }
 
-  .control-actions .btn:not(.btn-primary),
-  .exchange-section .btn {
-    font-size: 0.82rem;
-    padding: 0.55rem 0.5rem;
+  .control-actions .btn,
+  .exchange-section .btn,
+  .save-actions .btn {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.4rem;
   }
 
   .status-panel,
