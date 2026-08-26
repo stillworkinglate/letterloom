@@ -21,6 +21,13 @@
       calc((100vw - 2 * var(--app-pad-x) - 16px - 14 * var(--board-gap)) / 15),
       36px
     );
+    /* Rack tiles stay readable; the holder hugs the 7 tiles instead of
+       stretching to the 15-wide board. Cap so the tray never overflows. */
+    --rack-tile-size: min(
+      48px,
+      max(36px, 10.5vw),
+      calc((100vw - 2 * var(--app-pad-x) - 24px - 30px) / 7)
+    );
   }
 
   .letterloom-app {
@@ -130,6 +137,18 @@
     border-radius: 3px;
   }
 
+  .rack-slots {
+    width: max-content;
+    max-width: 100%;
+    margin-inline: auto;
+    gap: 5px;
+    padding: 8px 12px;
+  }
+
+  .rack-tile .tile-letter {
+    font-size: clamp(1rem, calc(var(--rack-tile-size) * 0.52), 1.35rem);
+  }
+
   /* Controls: 2-col grid from style.css; keep primary spanning full width */
   .control-actions,
   .exchange-section,
@@ -200,6 +219,11 @@
   :root {
     --app-pad-x: 0.65rem;
     --app-pad-y: 0.65rem;
+    --rack-tile-size: min(
+      48px,
+      max(38px, 11.5vw),
+      calc((100vw - 2 * var(--app-pad-x) - 20px - 30px) / 7)
+    );
   }
 
   .letterloom-app {
@@ -245,7 +269,7 @@
   }
 
   .rack-slots {
-    gap: 4px;
+    gap: 5px;
     padding: 8px 10px;
   }
 
@@ -367,6 +391,11 @@
   :root {
     --app-pad-x: 0.5rem;
     --app-pad-y: 0.5rem;
+    --rack-tile-size: min(
+      44px,
+      max(34px, 12vw),
+      calc((100vw - 2 * var(--app-pad-x) - 16px - 24px) / 7)
+    );
   }
 
   .setup-title {
@@ -378,8 +407,8 @@
   }
 
   .rack-slots {
-    gap: 3px;
-    padding: 6px 8px;
+    gap: 4px;
+    padding: 7px 8px;
   }
 
   .control-actions .btn,

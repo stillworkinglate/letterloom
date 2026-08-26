@@ -12,6 +12,7 @@
   --board-cell-alt: #c0a66d;
   --board-gap: 2px;
   --cell-size: 36px;
+  --rack-tile-size: var(--cell-size);
   --tw: #c0392b;
   --dw: #f4a6b8;
   --tl: #1a6fa8;
@@ -494,11 +495,24 @@ button,
 }
 
 .rack-slot {
-  width: calc(var(--cell-size) + 4px);
-  height: calc(var(--cell-size) + 8px);
+  width: calc(var(--rack-tile-size) + 4px);
+  height: calc(var(--rack-tile-size) + 8px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
+}
+
+.rack-tile .tile-face {
+  width: calc(var(--rack-tile-size) - 2px);
+  height: calc(var(--rack-tile-size) - 2px);
+}
+
+.rack-tile .tile-letter {
+  font-size: clamp(0.9rem, calc(var(--rack-tile-size) * 0.52), 1.35rem);
+}
+
+.rack-tile .tile-points {
+  font-size: clamp(0.55rem, calc(var(--rack-tile-size) * 0.22), 0.72rem);
 }
 
 .rack-tile {
