@@ -1,6 +1,6 @@
 /* Letterloom — mobile layout (load after style.css)
  *
- * ≤900px  stacked play, fluid cells
+ * ≤1000px stacked play, fluid cells
  * ≤560px  sticky rack, denser chrome
  * ≤380px  very narrow phones
  *
@@ -8,9 +8,9 @@
  * clamped 24–36px.
  */
 
-/* ≤900px — stacked layout */
+/* ≤1000px — stacked layout */
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   :root {
     --app-pad-x: 1rem;
     --app-pad-y: 1rem;
@@ -130,20 +130,11 @@
     border-radius: 3px;
   }
 
-  /* Controls: wrap cleanly; primary action stands out */
+  /* Controls: 2-col grid from style.css; keep primary spanning full width */
   .control-actions,
-  .exchange-section {
-    gap: 0.5rem;
-  }
-
-  .control-actions .btn-primary {
-    flex: 1 1 100%;
-  }
-
-  .control-actions .btn:not(.btn-primary),
-  .exchange-section .btn {
-    flex: 1 1 auto;
-    min-width: calc(50% - 0.25rem);
+  .exchange-section,
+  .save-actions {
+    gap: 0.45rem;
   }
 
   /* Setup / headings — slightly tighter */
@@ -264,28 +255,11 @@
     font-size: 0.8rem;
   }
 
-  /* Touch density: style.css already sets ~44px buttons; reinforce layout only */
-  .control-actions .btn-primary {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-
-  .control-actions .btn:not(.btn-primary) {
-    flex: 1 1 calc(50% - 0.25rem);
-    min-width: calc(50% - 0.25rem);
-  }
-
-  .exchange-section .btn {
-    flex: 1 1 calc(50% - 0.25rem);
-    min-width: calc(50% - 0.25rem);
-  }
-
-  .save-actions {
-    gap: 0.5rem;
-  }
-
+  /* Touch density: style.css already sets ~44px buttons and a 2-col grid */
+  .control-actions .btn,
+  .exchange-section .btn,
   .save-actions .btn {
-    flex: 1 1 auto;
+    font-size: 0.85rem;
   }
 
   /* Setup screen */
@@ -408,10 +382,11 @@
     padding: 6px 8px;
   }
 
-  .control-actions .btn:not(.btn-primary),
-  .exchange-section .btn {
-    font-size: 0.82rem;
-    padding: 0.55rem 0.5rem;
+  .control-actions .btn,
+  .exchange-section .btn,
+  .save-actions .btn {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.4rem;
   }
 
   .status-panel,

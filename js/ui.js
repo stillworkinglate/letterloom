@@ -207,6 +207,9 @@
       for (let col = 0; col < Engine.BOARD_SIZE; col += 1) {
         const cell = createElement('button', 'board-cell');
         cell.type = 'button';
+        if ((row + col) % 2 === 1) {
+          cell.classList.add('board-cell-alt');
+        }
         cell.dataset.row = String(row);
         cell.dataset.col = String(col);
         cell.setAttribute('role', 'gridcell');
@@ -453,28 +456,14 @@
     passBtn.addEventListener('click', () => callbacks.onPass && callbacks.onPass());
     actions.appendChild(passBtn);
 
-    const shuffleBtn = createElement('button', 'btn', 'Shuffle Rack');
+    const shuffleBtn = createElement('button', 'btn', 'Shuffle');
     shuffleBtn.type = 'button';
     shuffleBtn.dataset.focusId = 'shuffle';
+    shuffleBtn.setAttribute('aria-label', 'Shuffle rack');
     shuffleBtn.addEventListener('click', () => callbacks.onShuffle && callbacks.onShuffle());
     actions.appendChild(shuffleBtn);
 
-    container.appendChild(actions);
-
-    const exchangeSection = createElement('div', 'exchange-section');
-    if (state.exchangeMode) {
-      const confirmBtn = createElement('button', 'btn btn-warning', 'Confirm Exchange');
-      confirmBtn.type = 'button';
-      confirmBtn.dataset.focusId = 'confirm-exchange';
-      confirmBtn.addEventListener('click', () => callbacks.onConfirmExchange && callbacks.onConfirmExchange());
-      exchangeSection.appendChild(confirmBtn);
-
-      const cancelBtn = createElement('button', 'btn', 'Cancel Exchange');
-      cancelBtn.type = 'button';
-      cancelBtn.dataset.focusId = 'cancel-exchange';
-      cancelBtn.addEventListener('click', () => callbacks.onCancelExchange && callbacks.onCancelExchange());
-      exchangeSection.appendChild(cancelBtn);
-    } else {
+    if (!state.exchangeMode) {
       const exchangeBtn = createElement('button', 'btn', 'Exchange');
       exchangeBtn.type = 'button';
       exchangeBtn.dataset.focusId = 'exchange';
@@ -483,10 +472,27 @@
         exchangeBtn.setAttribute('aria-describedby', 'exchange-disabled-reason');
       }
       exchangeBtn.addEventListener('click', () => callbacks.onExchange && callbacks.onExchange());
-      exchangeSection.appendChild(exchangeBtn);
+      actions.appendChild(exchangeBtn);
     }
 
-    container.appendChild(exchangeSection);
+    container.appendChild(actions);
+
+    if (state.exchangeMode) {
+      const exchangeSection = createElement('div', 'exchange-section');
+      const confirmBtn = createElement('button', 'btn btn-warning', 'Confirm Exchange');
+      confirmBtn.type = 'button';
+      confirmBtn.dataset.focusId = 'confirm-exchange';
+      confirmBtn.addEventListener('click', () => callbacks.onConfirmExchange && callbacks.onConfirmExchange());
+      exchangeSection.appendChild(confirmBtn);
+
+      const cancelBtn = createElement('button', 'btn', 'Cancel');
+      cancelBtn.type = 'button';
+      cancelBtn.dataset.focusId = 'cancel-exchange';
+      cancelBtn.setAttribute('aria-label', 'Cancel exchange');
+      cancelBtn.addEventListener('click', () => callbacks.onCancelExchange && callbacks.onCancelExchange());
+      exchangeSection.appendChild(cancelBtn);
+      container.appendChild(exchangeSection);
+    }
 
     if (!state.canPlay && !state.exchangeMode) {
       const playHint = createElement(
