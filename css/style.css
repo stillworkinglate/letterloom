@@ -648,6 +648,18 @@ button,
   color: var(--accent);
 }
 
+.computer-think-banner {
+  width: 100%;
+  max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
+  padding: 0.55rem 0.75rem;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: var(--radius);
+  color: #1b5e20;
+  font-weight: 700;
+  text-align: center;
+}
+
 .status-thinking {
   display: flex;
   align-items: center;
