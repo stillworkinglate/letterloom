@@ -691,6 +691,13 @@ button,
   vertical-align: middle;
 }
 
+.letterloom-app.computer-thinking .board-container,
+.letterloom-app.computer-thinking .letterloom-rack,
+.letterloom-app.computer-thinking .control-actions,
+.letterloom-app.computer-thinking .exchange-section {
+  pointer-events: none;
+}
+
 .letterloom-app.computer-thinking .board-cell {
   cursor: default;
 }

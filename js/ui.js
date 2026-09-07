@@ -1077,6 +1077,7 @@
     let localAiIndex = null;
     let pendingThink = null;
     let inflightThink = null;
+    let thinkStartedAt = 0;
 
     const AI = global.LetterloomAI;
 
@@ -1314,7 +1315,9 @@
     }
 
     function isHumanLocked() {
-      return Boolean(game && Engine.isComputerTurn(game));
+      return Boolean(
+        computerThinking || (game && Engine.isComputerTurn(game))
+      );
     }
 
     function humanPlayerIndex() {
@@ -1327,6 +1330,7 @@
       computerThinking = false;
       pendingThink = null;
       inflightThink = null;
+      thinkStartedAt = 0;
       if (root) root.classList.remove('computer-thinking');
     }
 
@@ -1409,6 +1413,20 @@
     }
 
     function finishComputerTurn(action, failureMessage) {
+      const requestId = thinkRequestId;
+      const elapsed = thinkStartedAt ? Date.now() - thinkStartedAt : 400;
+      const wait = Math.max(0, 400 - elapsed);
+      if (wait > 0) {
+        global.setTimeout(() => {
+          if (requestId !== thinkRequestId) return;
+          commitComputerTurn(action, failureMessage);
+        }, wait);
+        return;
+      }
+      commitComputerTurn(action, failureMessage);
+    }
+
+    function commitComputerTurn(action, failureMessage) {
       if (!game || !Engine.isComputerTurn(game)) {
         computerThinking = false;
         root.classList.remove('computer-thinking');
@@ -1418,6 +1436,7 @@
       computerThinking = false;
       pendingThink = null;
       inflightThink = null;
+      thinkStartedAt = 0;
       root.classList.remove('computer-thinking');
       resetTurnState();
 
@@ -1490,6 +1509,7 @@
 
       resetTurnState();
       computerThinking = true;
+      thinkStartedAt = Date.now();
       root.classList.add('computer-thinking');
       const requestId = (thinkRequestId += 1);
       const computer = game.players[game.computerSeat];
