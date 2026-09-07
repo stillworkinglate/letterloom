@@ -1055,6 +1055,9 @@
     const boardScroll = createElement('div', 'board-scroll');
     const boardContainer = createElement('div', 'board-container');
     boardScroll.appendChild(boardContainer);
+    const thinkBanner = createElement('div', 'computer-think-banner hidden');
+    thinkBanner.setAttribute('role', 'status');
+    thinkBanner.setAttribute('aria-live', 'polite');
     const directionContainer = createElement('div', 'direction-container');
     const rackContainer = createElement('div', 'rack-container');
     const statusContainer = createElement('div', 'status-container');
@@ -1085,6 +1088,7 @@
     const mainArea = createElement('div', 'game-main');
     const boardArea = createElement('div', 'board-area');
     boardArea.appendChild(boardScroll);
+    boardArea.appendChild(thinkBanner);
     boardArea.appendChild(directionContainer);
     boardArea.appendChild(rackContainer);
     mainArea.appendChild(boardArea);
@@ -1414,8 +1418,8 @@
 
     function finishComputerTurn(action, failureMessage) {
       const requestId = thinkRequestId;
-      const elapsed = thinkStartedAt ? Date.now() - thinkStartedAt : 400;
-      const wait = Math.max(0, 400 - elapsed);
+      const elapsed = thinkStartedAt ? Date.now() - thinkStartedAt : 700;
+      const wait = Math.max(0, 700 - elapsed);
       if (wait > 0) {
         global.setTimeout(() => {
           if (requestId !== thinkRequestId) return;
@@ -1945,6 +1949,10 @@
       const rackPlayer = game.mode === 'computer' ? humanPlayerIndex() : game.currentPlayerIndex;
       gameEl.setAttribute('aria-busy', thinking ? 'true' : 'false');
       root.classList.toggle('computer-thinking', thinking);
+      thinkBanner.classList.toggle('hidden', !thinking);
+      thinkBanner.textContent = thinking
+        ? `${game.players[game.currentPlayerIndex].name} is thinking…`
+        : '';
 
       const resolved = resolvePlacementDirection(game, pendingPlacements);
       const direction = resolved.direction;
