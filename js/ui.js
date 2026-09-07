@@ -528,7 +528,7 @@
       container.appendChild(playHint);
     }
 
-    if (state.canExchange === false && !state.exchangeMode) {
+    if (state.canExchange === false && !state.exchangeMode && !locked) {
       const exchangeHint = createElement(
         'p',
         'control-message',
