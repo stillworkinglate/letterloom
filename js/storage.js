@@ -47,6 +47,11 @@
     if (!Array.isArray(snapshot.game.players) || snapshot.game.players.length < 2) return false;
     if (!Array.isArray(snapshot.game.board) || snapshot.game.board.length !== 15) return false;
     if (!Array.isArray(snapshot.game.bag)) return false;
+    // mode / computerSeat / computerDifficulty are optional so older
+    // human-vs-human JSON exports keep loading.
+    if (snapshot.game.mode != null && snapshot.game.mode !== 'human' && snapshot.game.mode !== 'computer') {
+      return false;
+    }
     return true;
   }
 
@@ -80,6 +85,10 @@
 
   function createSnapshot(game, uiState = {}, meta = {}) {
     if (!game) return null;
+
+    if (global.LetterloomEngine && global.LetterloomEngine.normalizeGameMeta) {
+      global.LetterloomEngine.normalizeGameMeta(game);
+    }
 
     const { dictionary, ...serializableGame } = game;
 
@@ -162,7 +171,11 @@
       const raw = localStorage.getItem(gameKey(id));
       if (!raw) return null;
       const snapshot = JSON.parse(raw);
-      return validateSnapshot(snapshot) ? snapshot : null;
+      if (!validateSnapshot(snapshot)) return null;
+      if (global.LetterloomEngine && global.LetterloomEngine.normalizeGameMeta) {
+        global.LetterloomEngine.normalizeGameMeta(snapshot.game);
+      }
+      return snapshot;
     } catch (err) {
       console.warn('Failed to load save:', id, err);
       return null;
@@ -264,6 +277,9 @@
             reject(new Error('File is not a valid Letterloom save.'));
             return;
           }
+          if (global.LetterloomEngine && global.LetterloomEngine.normalizeGameMeta) {
+            global.LetterloomEngine.normalizeGameMeta(snapshot.game);
+          }
           resolve(snapshot);
         } catch (err) {
           reject(new Error('Could not parse JSON save file.'));
@@ -275,6 +291,9 @@
   }
 
   function importSave(snapshot, name) {
+    if (snapshot && snapshot.game && global.LetterloomEngine && global.LetterloomEngine.normalizeGameMeta) {
+      global.LetterloomEngine.normalizeGameMeta(snapshot.game);
+    }
     const imported = {
       ...snapshot,
       id: generateId(),
