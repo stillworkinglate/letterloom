@@ -770,6 +770,42 @@
     return game && game.bag ? game.bag.length : 0;
   }
 
+  function normalizeDifficulty(value) {
+    const v = String(value || '').toLowerCase();
+    if (v === 'easy' || v === 'medium' || v === 'hard') return v;
+    return 'medium';
+  }
+
+  function normalizeComputerSeat(seat, playerCount) {
+    const n = Number(seat);
+    if (Number.isInteger(n) && n >= 0 && n < playerCount) return n;
+    return Math.max(0, playerCount - 1);
+  }
+
+  function normalizeGameMeta(game) {
+    if (!game) return game;
+    if (game.mode === 'computer') {
+      game.computerSeat = normalizeComputerSeat(game.computerSeat, game.players.length);
+      game.computerDifficulty = normalizeDifficulty(game.computerDifficulty);
+      if (game.computerSeed == null) game.computerSeed = Date.now();
+    } else {
+      game.mode = 'human';
+      if (game.computerSeat === undefined) game.computerSeat = null;
+      if (game.computerDifficulty === undefined) game.computerDifficulty = null;
+      if (game.computerSeed === undefined) game.computerSeed = null;
+    }
+    return game;
+  }
+
+  function isComputerTurn(game) {
+    return Boolean(
+      game &&
+        game.mode === 'computer' &&
+        game.status === 'playing' &&
+        game.computerSeat === game.currentPlayerIndex
+    );
+  }
+
   function createGame(playerNames, options = {}) {
     if (!Array.isArray(playerNames) || playerNames.length < 2 || playerNames.length > 4) {
       throw new Error('Letterloom requires 2 to 4 players.');
@@ -806,7 +842,17 @@
       isFirstMove: true,
       dictionary: options.dictionary || null,
       lastMove: null,
+      mode: options.mode === 'computer' ? 'computer' : 'human',
+      computerSeat: null,
+      computerDifficulty: null,
+      computerSeed: null,
     };
+
+    if (game.mode === 'computer') {
+      game.computerSeat = normalizeComputerSeat(options.computerSeat, players.length);
+      game.computerDifficulty = normalizeDifficulty(options.computerDifficulty);
+      game.computerSeed = options.computerSeed != null ? Number(options.computerSeed) : Date.now();
+    }
 
     return game;
   }
@@ -830,6 +876,10 @@
     passTurn,
     checkGameEnd,
     getRemainingBagCount,
+    normalizeDifficulty,
+    normalizeComputerSeat,
+    normalizeGameMeta,
+    isComputerTurn,
 
     // Useful helpers for UI / tests
     getPremiumAt,

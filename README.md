@@ -1,6 +1,6 @@
 # Letterloom
 
-Two-player crossword tiles on a 15×15 board. Same screen, take turns.
+Two-player crossword tiles on a 15×15 board. Same screen, take turns — or play the computer.
 
 **[Play](https://stillworkinglate.github.io/letterloom/)** · [Source](https://github.com/stillworkinglate/letterloom)
 
@@ -19,8 +19,8 @@ Open http://localhost:8080
 
 ## Play
 
-1. Enter two names (or load a saved game). Closest tile to **A** goes first; blanks win the draw.
-2. Each turn: play a word, exchange tiles, or pass.
+1. Enter two names, or choose **Play the computer** and a difficulty (or load a saved game). Closest tile to **A** goes first; blanks win the draw.
+2. Each turn: play a word, exchange tiles, or pass. The computer moves automatically.
 3. Select a rack tile, place it on the board, then **Play Word**. Click a pending tile to take it back.
 4. First word must cover the center ★. Later words must connect. All formed words (including crosses) must be in the dictionary.
 5. Blank tiles pick a letter when placed. Exchange needs 7+ tiles in the bag.
@@ -34,7 +34,7 @@ Open http://localhost:8080
 
 ## Save
 
-Games live in this browser’s local storage and auto-update after each move once named.
+Games live in this browser’s local storage and auto-update after each move once named. Computer games store the mode, which seat the computer occupies, and the difficulty. Older two-player saves still load.
 
 | | |
 |--|--|
@@ -72,9 +72,24 @@ Arrow keys move the focused board cell. Tab leaves the grid. Skip links jump to 
 ```
 index.html
 css/          style.css, mobile.css
-js/           engine.js, storage.js, ui.js
+js/           engine.js, storage.js, ai.js, ai-worker.js, ui.js
 data/words.txt   ~178k free lexicon
+tests/        node tests for the engine and computer opponent
 LICENSE          MIT
+```
+
+The computer searches legal moves in a Web Worker with the same dictionary and engine used for human play. It only sees the board, its own rack, and public information (scores, bag count) — not your rack or the order of tiles in the bag.
+
+| Difficulty | How it chooses among legal moves |
+|------------|----------------------------------|
+| Easy | Picks from a lower-scoring band of reasonable plays |
+| Medium | Favors score with a little rack-leave balance, then picks among the top few |
+| Hard | Takes the highest `score + 0.85 × leaveValue`. `leaveValue` is a static estimate (S and blanks valued; awkward leftovers penalized). Hard is **not** an exhaustive or optimal strategy search |
+
+Random choices are seedable so tests can replay the same decision. If no legal placement exists, the computer exchanges when the bag has at least 7 tiles; otherwise it passes.
+
+```bash
+node tests/ai.test.js
 ```
 
 ## License

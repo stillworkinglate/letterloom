@@ -22,6 +22,7 @@
     'Blank tiles let you choose any letter when placed.',
     'Exchange tiles only when at least 7 tiles remain in the bag.',
     'Playing all 7 tiles in one turn scores a 50-point bonus.',
+    'You can play another person on the same screen, or play the computer on Easy, Medium, or Hard. The computer uses the same dictionary and rules.',
   ];
 
   function describeBoardCell(row, col, placed, pendingDisplay, premium) {
@@ -296,7 +297,7 @@
     container.id = 'letterloom-rack';
     container.setAttribute('role', 'group');
 
-    const player = game.players[game.currentPlayerIndex];
+    const player = game.players[options.playerIndex ?? game.currentPlayerIndex];
     const selected = new Set(selectedTileIds || []);
     const pendingIds = new Set(options.pendingTileIds || []);
     const labelId = 'rack-player-label';
@@ -318,8 +319,11 @@
 
         btn.appendChild(renderTileFace(tile, { selected: isSelected }));
 
-        if (options.onTileClick) {
+        if (options.onTileClick && !options.locked) {
           btn.addEventListener('click', () => options.onTileClick(tile.id));
+        }
+        if (options.locked) {
+          btn.disabled = true;
         }
 
         slot.appendChild(btn);
@@ -343,8 +347,9 @@
   /**
    * @param {HTMLElement} container
    * @param {object} game
+   * @param {{ thinking?: boolean }} [options]
    */
-  function renderStatus(container, game) {
+  function renderStatus(container, game, options = {}) {
     clearElement(container);
     container.classList.add('status-panel');
 
@@ -353,7 +358,16 @@
     turnEl.appendChild(createElement('h2', 'status-heading', 'Current Turn'));
     turnEl.appendChild(createElement('p', 'status-current-player', current.name));
 
-    if (game.status === 'playing') {
+    if (options.thinking) {
+      const think = createElement('p', 'status-thinking');
+      think.setAttribute('aria-live', 'polite');
+      think.appendChild(createElement('span', 'status-thinking-dot', ''));
+      const level = game.computerDifficulty
+        ? ` (${game.computerDifficulty})`
+        : '';
+      think.appendChild(document.createTextNode(`${current.name} is thinking${level}…`));
+      turnEl.appendChild(think);
+    } else if (game.status === 'playing') {
       turnEl.appendChild(
         createElement('p', 'status-turn-number', `Turn ${game.turnNumber}`)
       );
@@ -374,6 +388,9 @@
       }
       const nameWrap = createElement('span', 'score-name');
       nameWrap.appendChild(document.createTextNode(player.name));
+      if (game.mode === 'computer' && index === game.computerSeat) {
+        nameWrap.appendChild(createElement('span', 'cpu-badge', 'CPU'));
+      }
       if (isCurrent) {
         nameWrap.appendChild(createElement('span', 'sr-only', ' (current turn)'));
       }
@@ -434,11 +451,13 @@
 
     const actions = createElement('div', 'control-actions');
 
+    const locked = Boolean(state.locked);
+
     const playBtn = createElement('button', 'btn btn-primary', 'Play Word');
     playBtn.type = 'button';
     playBtn.dataset.focusId = 'play';
-    playBtn.disabled = !state.canPlay;
-    if (!state.canPlay) {
+    playBtn.disabled = !state.canPlay || locked;
+    if (!state.canPlay || locked) {
       playBtn.setAttribute('aria-describedby', 'play-disabled-reason');
     }
     playBtn.addEventListener('click', () => callbacks.onPlay && callbacks.onPlay());
@@ -447,18 +466,21 @@
     const clearBtn = createElement('button', 'btn', 'Clear');
     clearBtn.type = 'button';
     clearBtn.dataset.focusId = 'clear';
+    clearBtn.disabled = locked;
     clearBtn.addEventListener('click', () => callbacks.onClear && callbacks.onClear());
     actions.appendChild(clearBtn);
 
     const passBtn = createElement('button', 'btn', 'Pass');
     passBtn.type = 'button';
     passBtn.dataset.focusId = 'pass';
+    passBtn.disabled = locked;
     passBtn.addEventListener('click', () => callbacks.onPass && callbacks.onPass());
     actions.appendChild(passBtn);
 
     const shuffleBtn = createElement('button', 'btn', 'Shuffle');
     shuffleBtn.type = 'button';
     shuffleBtn.dataset.focusId = 'shuffle';
+    shuffleBtn.disabled = locked;
     shuffleBtn.setAttribute('aria-label', 'Shuffle rack');
     shuffleBtn.addEventListener('click', () => callbacks.onShuffle && callbacks.onShuffle());
     actions.appendChild(shuffleBtn);
@@ -467,8 +489,8 @@
       const exchangeBtn = createElement('button', 'btn', 'Exchange');
       exchangeBtn.type = 'button';
       exchangeBtn.dataset.focusId = 'exchange';
-      exchangeBtn.disabled = !state.canExchange;
-      if (!state.canExchange) {
+      exchangeBtn.disabled = !state.canExchange || locked;
+      if (!state.canExchange || locked) {
         exchangeBtn.setAttribute('aria-describedby', 'exchange-disabled-reason');
       }
       exchangeBtn.addEventListener('click', () => callbacks.onExchange && callbacks.onExchange());
@@ -494,17 +516,19 @@
       container.appendChild(exchangeSection);
     }
 
-    if (!state.canPlay && !state.exchangeMode) {
+    if ((!state.canPlay || locked) && !state.exchangeMode) {
       const playHint = createElement(
         'p',
         'sr-only',
-        'Play Word is unavailable until tiles form a valid word.'
+        locked
+          ? 'Play Word is unavailable while the computer is taking its turn.'
+          : 'Play Word is unavailable until tiles form a valid word.'
       );
       playHint.id = 'play-disabled-reason';
       container.appendChild(playHint);
     }
 
-    if (state.canExchange === false && !state.exchangeMode) {
+    if (state.canExchange === false && !state.exchangeMode && !locked) {
       const exchangeHint = createElement(
         'p',
         'control-message',
@@ -678,13 +702,29 @@
     card.appendChild(createElement('p', 'setup-subtitle', 'Or start a new game:'));
 
     const form = createElement('form', 'setup-form');
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const p1 = form.querySelector('#player1-name').value.trim() || 'Player 1';
-      const p2 = form.querySelector('#player2-name').value.trim() || 'Player 2';
-      callbacks.onStart([p1, p2]);
-    });
 
+    const modeField = createElement('fieldset', 'setup-fieldset');
+    const modeLegend = createElement('legend', null, 'Game mode');
+    modeField.appendChild(modeLegend);
+    const modeRow = createElement('div', 'setup-choice-row');
+    [
+      { value: 'human', label: 'Two players' },
+      { value: 'computer', label: 'Play the computer' },
+    ].forEach((choice, index) => {
+      const wrap = createElement('label', 'setup-choice');
+      const radio = createElement('input');
+      radio.type = 'radio';
+      radio.name = 'game-mode';
+      radio.value = choice.value;
+      radio.checked = index === 0;
+      wrap.appendChild(radio);
+      wrap.appendChild(document.createTextNode(choice.label));
+      modeRow.appendChild(wrap);
+    });
+    modeField.appendChild(modeRow);
+    form.appendChild(modeField);
+
+    const humanFields = createElement('div', 'setup-human-fields');
     const field1 = createElement('div', 'form-field');
     const label1 = createElement('label', null, 'Player 1');
     label1.htmlFor = 'player1-name';
@@ -696,7 +736,7 @@
     input1.autocomplete = 'nickname';
     input1.maxLength = 20;
     field1.appendChild(input1);
-    form.appendChild(field1);
+    humanFields.appendChild(field1);
 
     const field2 = createElement('div', 'form-field');
     const label2 = createElement('label', null, 'Player 2');
@@ -709,7 +749,106 @@
     input2.autocomplete = 'nickname';
     input2.maxLength = 20;
     field2.appendChild(input2);
-    form.appendChild(field2);
+    humanFields.appendChild(field2);
+    form.appendChild(humanFields);
+
+    const computerFields = createElement('div', 'setup-computer-fields hidden');
+    const difficultyField = createElement('fieldset', 'setup-fieldset');
+    difficultyField.appendChild(createElement('legend', null, 'Difficulty'));
+    const difficultyRow = createElement('div', 'setup-choice-row');
+    [
+      { value: 'easy', label: 'Easy' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'hard', label: 'Hard' },
+    ].forEach((choice) => {
+      const wrap = createElement('label', 'setup-choice');
+      const radio = createElement('input');
+      radio.type = 'radio';
+      radio.name = 'difficulty';
+      radio.value = choice.value;
+      radio.checked = choice.value === 'medium';
+      wrap.appendChild(radio);
+      wrap.appendChild(document.createTextNode(choice.label));
+      difficultyRow.appendChild(wrap);
+    });
+    difficultyField.appendChild(difficultyRow);
+    computerFields.appendChild(difficultyField);
+
+    const humanNameField = createElement('div', 'form-field');
+    const humanNameLabel = createElement('label', null, 'Your name');
+    humanNameLabel.htmlFor = 'human-name';
+    humanNameField.appendChild(humanNameLabel);
+    const humanNameInput = createElement('input', 'setup-input');
+    humanNameInput.type = 'text';
+    humanNameInput.id = 'human-name';
+    humanNameInput.name = 'human';
+    humanNameInput.autocomplete = 'nickname';
+    humanNameInput.maxLength = 20;
+    humanNameField.appendChild(humanNameInput);
+    computerFields.appendChild(humanNameField);
+
+    const seatField = createElement('div', 'form-field');
+    const seatLabel = createElement('label', null, 'Computer sits as');
+    seatLabel.htmlFor = 'computer-seat';
+    seatField.appendChild(seatLabel);
+    const seatSelect = createElement('select', 'setup-input');
+    seatSelect.id = 'computer-seat';
+    seatSelect.name = 'computerSeat';
+    const seat2 = createElement('option', null, 'Player 2 — you are Player 1');
+    seat2.value = '1';
+    seat2.selected = true;
+    const seat1 = createElement('option', null, 'Player 1 — you are Player 2');
+    seat1.value = '0';
+    seatSelect.appendChild(seat2);
+    seatSelect.appendChild(seat1);
+    seatField.appendChild(seatSelect);
+    computerFields.appendChild(seatField);
+
+    const computerHint = createElement(
+      'p',
+      'setup-computer-hint',
+      'Closest tile to A still goes first. Hard favors score and rack leave; it is not an exhaustive strategy search.'
+    );
+    computerFields.appendChild(computerHint);
+    form.appendChild(computerFields);
+
+    function syncModeFields() {
+      const mode = form.querySelector('input[name="game-mode"]:checked');
+      const vsComputer = mode && mode.value === 'computer';
+      computerFields.classList.toggle('hidden', !vsComputer);
+      humanFields.classList.toggle('hidden', vsComputer);
+      input1.disabled = vsComputer;
+      input2.disabled = vsComputer;
+      humanNameInput.disabled = !vsComputer;
+      seatSelect.disabled = !vsComputer;
+    }
+
+    form.querySelectorAll('input[name="game-mode"]').forEach((radio) => {
+      radio.addEventListener('change', syncModeFields);
+    });
+    syncModeFields();
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const mode = (form.querySelector('input[name="game-mode"]:checked') || {}).value || 'human';
+      if (mode === 'computer') {
+        const humanName = humanNameInput.value.trim() || 'Player 1';
+        const seat = Number(seatSelect.value) === 0 ? 0 : 1;
+        const difficulty =
+          (form.querySelector('input[name="difficulty"]:checked') || {}).value || 'medium';
+        const names = seat === 0 ? ['Computer', humanName] : [humanName, 'Computer'];
+        callbacks.onStart(names, {
+          mode: 'computer',
+          computerSeat: seat,
+          difficulty,
+        });
+        return;
+      }
+
+      const p1 = input1.value.trim() || 'Player 1';
+      const p2 = input2.value.trim() || 'Player 2';
+      callbacks.onStart([p1, p2], { mode: 'human' });
+    });
 
     const startBtn = createElement('button', 'btn btn-primary setup-start', 'Start Game');
     startBtn.type = 'submit';
@@ -916,6 +1055,9 @@
     const boardScroll = createElement('div', 'board-scroll');
     const boardContainer = createElement('div', 'board-container');
     boardScroll.appendChild(boardContainer);
+    const thinkBanner = createElement('div', 'computer-think-banner hidden');
+    thinkBanner.setAttribute('role', 'status');
+    thinkBanner.setAttribute('aria-live', 'polite');
     const directionContainer = createElement('div', 'direction-container');
     const rackContainer = createElement('div', 'rack-container');
     const statusContainer = createElement('div', 'status-container');
@@ -930,11 +1072,23 @@
     let activeSaveId = null;
     let activeSaveName = null;
     let lastSavedAt = null;
+    let computerThinking = false;
+    let thinkRequestId = 0;
+    let aiWorker = null;
+    let aiWorkerReady = false;
+    let aiWorkerFailed = false;
+    let localAiIndex = null;
+    let pendingThink = null;
+    let inflightThink = null;
+    let thinkStartedAt = 0;
+
+    const AI = global.LetterloomAI;
 
     const gameTitle = createElement('h1', 'sr-only', 'Letterloom');
     const mainArea = createElement('div', 'game-main');
     const boardArea = createElement('div', 'board-area');
     boardArea.appendChild(boardScroll);
+    boardArea.appendChild(thinkBanner);
     boardArea.appendChild(directionContainer);
     boardArea.appendChild(rackContainer);
     mainArea.appendChild(boardArea);
@@ -1164,8 +1318,260 @@
       });
     }
 
+    function isHumanLocked() {
+      return Boolean(
+        computerThinking || (game && Engine.isComputerTurn(game))
+      );
+    }
+
+    function humanPlayerIndex() {
+      if (!game || game.mode !== 'computer') return game ? game.currentPlayerIndex : 0;
+      return game.computerSeat === 0 ? 1 : 0;
+    }
+
+    function cancelComputerTurn() {
+      thinkRequestId += 1;
+      computerThinking = false;
+      pendingThink = null;
+      inflightThink = null;
+      thinkStartedAt = 0;
+      if (root) root.classList.remove('computer-thinking');
+    }
+
+    function ensureLocalIndex() {
+      if (localAiIndex || !AI || !options.dictionary) return localAiIndex;
+      localAiIndex = AI.buildIndex(options.dictionary);
+      return localAiIndex;
+    }
+
+    function handleWorkerMessage(event) {
+      const msg = event.data || {};
+      if (msg.type === 'ready') {
+        aiWorkerReady = true;
+        if (pendingThink && pendingThink.requestId === thinkRequestId && computerThinking && aiWorker) {
+          const queued = pendingThink;
+          pendingThink = null;
+          inflightThink = queued;
+          aiWorker.postMessage(queued);
+        }
+        return;
+      }
+      if (msg.requestId !== thinkRequestId) return;
+      if (msg.type === 'error') {
+        finishComputerTurn(null, msg.error || 'Computer search failed.');
+        return;
+      }
+      if (msg.type === 'result') {
+        finishComputerTurn(msg.result);
+      }
+    }
+
+    function ensureAiWorker() {
+      if (aiWorkerFailed || typeof global.Worker !== 'function') return null;
+      if (aiWorker) return aiWorker;
+      try {
+        aiWorker = new Worker('js/ai-worker.js');
+        aiWorker.addEventListener('message', handleWorkerMessage);
+        aiWorker.addEventListener('error', () => {
+          aiWorkerReady = false;
+          aiWorkerFailed = true;
+          if (aiWorker) {
+            try {
+              aiWorker.terminate();
+            } catch (err) {
+              /* ignore */
+            }
+          }
+          aiWorker = null;
+          if (computerThinking && inflightThink && inflightThink.requestId === thinkRequestId) {
+            const queued = inflightThink;
+            pendingThink = null;
+            inflightThink = null;
+            runComputerTurnLocal(queued.requestId, queued.snapshot, queued.difficulty, queued.seed);
+          } else if (computerThinking) {
+            finishComputerTurn(null, 'Computer worker failed.');
+          }
+        });
+        if (options.dictionary) {
+          aiWorker.postMessage({ type: 'init', words: Array.from(options.dictionary) });
+        }
+      } catch (err) {
+        console.warn('Could not start AI worker:', err);
+        aiWorker = null;
+        aiWorkerReady = false;
+        aiWorkerFailed = true;
+      }
+      return aiWorker;
+    }
+
+    function applyComputerAction(action) {
+      if (!game || !action) return { ok: false, error: 'No computer action.' };
+
+      if (action.type === 'play') {
+        return Engine.applyMove(game, action.placements, action.direction);
+      }
+      if (action.type === 'exchange') {
+        return Engine.exchangeTiles(game, action.tileIds);
+      }
+      return Engine.passTurn(game);
+    }
+
+    function finishComputerTurn(action, failureMessage) {
+      const requestId = thinkRequestId;
+      const elapsed = thinkStartedAt ? Date.now() - thinkStartedAt : 700;
+      const wait = Math.max(0, 700 - elapsed);
+      if (wait > 0) {
+        global.setTimeout(() => {
+          if (requestId !== thinkRequestId) return;
+          commitComputerTurn(action, failureMessage);
+        }, wait);
+        return;
+      }
+      commitComputerTurn(action, failureMessage);
+    }
+
+    function commitComputerTurn(action, failureMessage) {
+      if (!game || !Engine.isComputerTurn(game)) {
+        computerThinking = false;
+        root.classList.remove('computer-thinking');
+        return;
+      }
+
+      computerThinking = false;
+      pendingThink = null;
+      inflightThink = null;
+      thinkStartedAt = 0;
+      root.classList.remove('computer-thinking');
+      resetTurnState();
+
+      const computer = game.players[game.computerSeat];
+      let result;
+
+      if (!action) {
+        result = Engine.passTurn(game);
+        showMessage(
+          failureMessage
+            ? `${failureMessage} ${computer.name} passes.`
+            : `${computer.name} could not move and passed.`,
+          Boolean(failureMessage)
+        );
+      } else {
+        result = applyComputerAction(action);
+        if (!result.ok) {
+          result = Engine.passTurn(game);
+          showMessage(
+            `${computer.name} attempted an invalid move and passed.`,
+            true
+          );
+        } else if (AI) {
+          showMessage(AI.explainAction(action, computer.name));
+        } else if (action.type === 'play') {
+          showMessage(
+            `${computer.name} played ${(action.words || []).join(', ')} for ${action.score} points.`
+          );
+        } else if (action.type === 'exchange') {
+          showMessage(`${computer.name} exchanged ${(action.tileIds || []).length} tile(s).`);
+        } else {
+          showMessage(`${computer.name} passed.`);
+        }
+      }
+
+      if (result && result.endResult && result.endResult.ended) {
+        showGameOver();
+      }
+
+      refresh();
+      maybeStartComputerTurn();
+    }
+
+    function runComputerTurnLocal(requestId, snapshot, difficulty, seed) {
+      global.setTimeout(() => {
+        if (requestId !== thinkRequestId) return;
+        try {
+          const index = ensureLocalIndex();
+          if (!index || !AI) {
+            finishComputerTurn(null, 'Computer opponent is unavailable.');
+            return;
+          }
+          const result = AI.decideTurn(snapshot, {
+            difficulty,
+            seed,
+            index,
+            engine: Engine,
+          });
+          if (requestId !== thinkRequestId) return;
+          finishComputerTurn(result);
+        } catch (err) {
+          if (requestId !== thinkRequestId) return;
+          finishComputerTurn(null, err.message || 'Computer search failed.');
+        }
+      }, 0);
+    }
+
+    function maybeStartComputerTurn() {
+      if (!game || !Engine.isComputerTurn(game) || dialogOpen || computerThinking) return;
+
+      resetTurnState();
+      computerThinking = true;
+      thinkStartedAt = Date.now();
+      root.classList.add('computer-thinking');
+      const requestId = (thinkRequestId += 1);
+      const computer = game.players[game.computerSeat];
+      showMessage(`${computer.name} is thinking…`);
+      refresh();
+
+      const snapshot = AI
+        ? AI.publicSnapshot(game, game.computerSeat)
+        : {
+            board: game.board,
+            rack: game.players[game.computerSeat].rack,
+            bagCount: game.bag.length,
+            isFirstMove: Boolean(game.isFirstMove),
+            status: game.status,
+            turnNumber: game.turnNumber,
+          };
+
+      const seed = AI
+        ? AI.mixSeed(game.computerSeed, game.turnNumber)
+        : game.turnNumber;
+      const difficulty = game.computerDifficulty || 'medium';
+      const payload = {
+        type: 'think',
+        requestId,
+        snapshot,
+        difficulty,
+        seed,
+      };
+      inflightThink = payload;
+      const worker = ensureAiWorker();
+
+      if (worker) {
+        if (aiWorkerReady) {
+          try {
+            worker.postMessage(payload);
+            return;
+          } catch (err) {
+            console.warn('AI worker postMessage failed:', err);
+          }
+        } else {
+          pendingThink = payload;
+          global.setTimeout(() => {
+            if (requestId !== thinkRequestId || !computerThinking) return;
+            if (!aiWorkerReady) {
+              pendingThink = null;
+              inflightThink = null;
+              runComputerTurnLocal(requestId, snapshot, difficulty, seed);
+            }
+          }, 2500);
+          return;
+        }
+      }
+
+      runComputerTurnLocal(requestId, snapshot, difficulty, seed);
+    }
+
     async function handleBoardClick(row, col) {
-      if (!game || game.status !== 'playing' || exchangeMode || dialogOpen) return;
+      if (!game || game.status !== 'playing' || exchangeMode || dialogOpen || isHumanLocked()) return;
 
       boardFocus = { row, col };
       lastFocus = { kind: 'cell', row, col };
@@ -1206,7 +1612,7 @@
     }
 
     function handleRackClick(tileId) {
-      if (!game || game.status !== 'playing') return;
+      if (!game || game.status !== 'playing' || isHumanLocked()) return;
 
       if (exchangeMode) {
         if (exchangeTileIds.includes(tileId)) {
@@ -1226,7 +1632,7 @@
     }
 
     function shuffleRack() {
-      if (!game || exchangeMode) return;
+      if (!game || exchangeMode || isHumanLocked()) return;
       const player = game.players[game.currentPlayerIndex];
       Engine.shuffleInPlace(player.rack);
       announce('Rack shuffled.');
@@ -1234,7 +1640,7 @@
     }
 
     function handlePlay() {
-      if (!game || pendingPlacements.length === 0) return;
+      if (!game || pendingPlacements.length === 0 || isHumanLocked()) return;
 
       const resolved = resolvePlacementDirection(game, pendingPlacements);
       if (!resolved.direction) {
@@ -1260,9 +1666,11 @@
       }
 
       refresh();
+      maybeStartComputerTurn();
     }
 
     function handleClear() {
+      if (isHumanLocked()) return;
       pendingPlacements = [];
       selectedTileId = null;
       showMessage('');
@@ -1270,7 +1678,7 @@
     }
 
     function handlePass() {
-      if (!game) return;
+      if (!game || isHumanLocked()) return;
       if (pendingPlacements.length > 0) {
         showMessage('Clear your placements before passing.', true);
         return;
@@ -1290,10 +1698,11 @@
       }
 
       refresh();
+      maybeStartComputerTurn();
     }
 
     function handleExchangeStart() {
-      if (!game) return;
+      if (!game || isHumanLocked()) return;
       if (game.bag.length < Engine.MIN_BAG_FOR_EXCHANGE) {
         showMessage(
           `Cannot exchange — fewer than ${Engine.MIN_BAG_FOR_EXCHANGE} tiles in the bag.`,
@@ -1324,6 +1733,7 @@
       resetTurnState();
       showMessage(`Exchanged ${result.exchanged} tile(s).`);
       refresh();
+      maybeStartComputerTurn();
     }
 
     function handleCancelExchange() {
@@ -1360,14 +1770,23 @@
         return false;
       }
 
+      cancelComputerTurn();
       game = snapshot.game;
+      Engine.normalizeGameMeta(game);
       game.dictionary = options.dictionary || null;
 
       const ui = snapshot.ui || {};
-      pendingPlacements = ui.pendingPlacements || [];
-      selectedTileId = ui.selectedTileId ?? null;
-      exchangeMode = Boolean(ui.exchangeMode);
-      exchangeTileIds = ui.exchangeTileIds || [];
+      if (Engine.isComputerTurn(game)) {
+        pendingPlacements = [];
+        selectedTileId = null;
+        exchangeMode = false;
+        exchangeTileIds = [];
+      } else {
+        pendingPlacements = ui.pendingPlacements || [];
+        selectedTileId = ui.selectedTileId ?? null;
+        exchangeMode = Boolean(ui.exchangeMode);
+        exchangeTileIds = ui.exchangeTileIds || [];
+      }
 
       activeSaveId = saveId || snapshot.id || null;
       activeSaveName = snapshot.name || Storage.buildDefaultName(game);
@@ -1387,6 +1806,7 @@
       }
 
       refresh();
+      maybeStartComputerTurn();
       return true;
     }
 
@@ -1478,6 +1898,7 @@
         if (!confirmed) return;
       }
 
+      cancelComputerTurn();
       game = null;
       activeSaveId = null;
       activeSaveName = null;
@@ -1523,11 +1944,21 @@
 
       rememberFocus();
 
+      const locked = isHumanLocked();
+      const thinking = computerThinking || locked;
+      const rackPlayer = game.mode === 'computer' ? humanPlayerIndex() : game.currentPlayerIndex;
+      gameEl.setAttribute('aria-busy', thinking ? 'true' : 'false');
+      root.classList.toggle('computer-thinking', thinking);
+      thinkBanner.classList.toggle('hidden', !thinking);
+      thinkBanner.textContent = thinking
+        ? `${game.players[game.currentPlayerIndex].name} is thinking…`
+        : '';
+
       const resolved = resolvePlacementDirection(game, pendingPlacements);
       const direction = resolved.direction;
 
       renderBoard(boardContainer, game, pendingPlacements, {
-        onCellClick: handleBoardClick,
+        onCellClick: locked ? null : handleBoardClick,
         focusCell: boardFocus,
         onFocusCell: (row, col) => {
           boardFocus = { row, col };
@@ -1542,19 +1973,19 @@
         {
           exchangeMode,
           pendingTileIds: pendingPlacements.map((p) => p.tileId),
-          onTileClick: handleRackClick,
+          onTileClick: locked ? null : handleRackClick,
+          playerIndex: rackPlayer,
+          locked,
         }
       );
 
-      renderStatus(statusContainer, game);
+      renderStatus(statusContainer, game, { thinking });
       renderDirectionHint(directionContainer, direction, pendingPlacements.length);
 
       const validation =
         pendingPlacements.length > 0 && direction
           ? resolved.validation || Engine.validatePlacement(game, pendingPlacements, direction)
           : { ok: false };
-
-      renderScorePreview(previewContainer, game, pendingPlacements, direction, validation);
 
       renderControls(
         controlsContainer,
@@ -1569,10 +2000,15 @@
         },
         {
           exchangeMode,
-          canPlay: validation.ok === true,
-          canExchange: game.bag.length >= Engine.MIN_BAG_FOR_EXCHANGE && !exchangeMode,
+          canPlay: validation.ok === true && !locked,
+          canExchange: game.bag.length >= Engine.MIN_BAG_FOR_EXCHANGE && !exchangeMode && !locked,
           bagCount: game.bag.length,
-          message: exchangeMode ? 'Exchange mode — select tiles from your rack.' : '',
+          locked,
+          message: thinking
+            ? `${game.players[game.currentPlayerIndex].name} is thinking…`
+            : exchangeMode
+              ? 'Exchange mode — select tiles from your rack.'
+              : '',
         }
       );
 
@@ -1589,10 +2025,14 @@
 
       if (game.status === 'playing') {
         const current = game.players[game.currentPlayerIndex];
-        const turnKey = `${game.currentPlayerIndex}-${game.turnNumber}`;
+        const turnKey = `${game.currentPlayerIndex}-${game.turnNumber}${thinking ? '-thinking' : ''}`;
         if (turnKey !== lastAnnouncedTurn) {
           lastAnnouncedTurn = turnKey;
-          announce(`${current.name}'s turn. Turn ${game.turnNumber}.`);
+          announce(
+            thinking
+              ? `${current.name} is thinking. Turn ${game.turnNumber}.`
+              : `${current.name}'s turn. Turn ${game.turnNumber}.`
+          );
         }
       }
 
@@ -1610,9 +2050,15 @@
       });
     }
 
-    function startGame(playerNames) {
+    function startGame(playerNames, setupOptions = {}) {
       const dictionary = options.dictionary || null;
-      game = Engine.createGame(playerNames, { dictionary });
+      cancelComputerTurn();
+      game = Engine.createGame(playerNames, {
+        dictionary,
+        mode: setupOptions.mode,
+        computerSeat: setupOptions.computerSeat,
+        computerDifficulty: setupOptions.difficulty,
+      });
       activeSaveId = null;
       activeSaveName = null;
       lastSavedAt = null;
@@ -1626,6 +2072,7 @@
       const first = game.players[game.currentPlayerIndex];
       showMessage(`${first.name} goes first — the first word must cover the center starting square.`);
       refresh();
+      maybeStartComputerTurn();
     }
 
     function buildSetupCallbacks() {
@@ -1643,6 +2090,7 @@
     }
 
     async function showSetup(importError) {
+      cancelComputerTurn();
       setupEl.classList.remove('hidden');
       gameEl.classList.add('hidden');
       clearElement(setupEl);
@@ -1683,6 +2131,10 @@
           setupEl.appendChild(errCard);
           return;
         }
+      }
+
+      if (options.dictionary) {
+        ensureAiWorker();
       }
 
       clearElement(setupEl);
