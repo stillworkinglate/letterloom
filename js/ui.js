@@ -132,6 +132,118 @@
     parent.appendChild(list);
   }
 
+  function letterPoints(letter) {
+    const info = Engine && Engine.TILE_DISTRIBUTION && Engine.TILE_DISTRIBUTION[letter];
+    return info ? info.points : 0;
+  }
+
+  function appendDecorPoints(parent, points) {
+    if (points === '' || points === null || points === undefined) return;
+    parent.appendChild(createElement('i', null, String(points)));
+  }
+
+  function appendWordmark(parent) {
+    const rack = createElement('div', 'setup-wordmark');
+    rack.setAttribute('aria-hidden', 'true');
+    const word = 'LETTERLOOM';
+    for (let i = 0; i < word.length; i += 1) {
+      const letter = word.charAt(i);
+      const tile = createElement('span', 'setup-wordmark-tile');
+      tile.appendChild(document.createTextNode(letter));
+      appendDecorPoints(tile, letterPoints(letter));
+      rack.appendChild(tile);
+    }
+    parent.appendChild(rack);
+  }
+
+  function appendSetupBoardExcerpt(parent) {
+    if (!Engine || !Engine.PREMIUM_LAYOUT) return;
+
+    const board = createElement('div', 'setup-board-excerpt');
+    board.setAttribute('aria-hidden', 'true');
+
+    const origin = Engine.CENTER_ROW - 3;
+    const tiles = {
+      '3,2': 'L',
+      '3,3': 'O',
+      '3,4': 'O',
+      '3,5': 'M',
+      '4,3': 'A',
+      '5,3': 'K',
+    };
+
+    for (let r = 0; r < 7; r += 1) {
+      for (let c = 0; c < 7; c += 1) {
+        const cell = createElement('span', 'setup-excerpt-cell');
+        const boardRow = origin + r;
+        const boardCol = origin + c;
+        if ((boardRow + boardCol) % 2 === 1) {
+          cell.classList.add('setup-excerpt-alt');
+        }
+
+        const letter = tiles[`${r},${c}`];
+        const isCenter = r === 3 && c === 3;
+        const premium =
+          Engine && Engine.PREMIUM_LAYOUT ? Engine.PREMIUM_LAYOUT[boardRow][boardCol] : '.';
+
+        if (letter) {
+          cell.classList.add('setup-excerpt-tile');
+          cell.appendChild(document.createTextNode(letter));
+          appendDecorPoints(cell, letterPoints(letter));
+        } else {
+          if (premium && premium !== '.') {
+            cell.classList.add(`setup-excerpt-${premium.toLowerCase()}`);
+            cell.appendChild(document.createTextNode(premium));
+          }
+          if (isCenter) {
+            cell.classList.add('setup-excerpt-star');
+            cell.appendChild(document.createTextNode('★'));
+          }
+        }
+
+        board.appendChild(cell);
+      }
+    }
+
+    parent.appendChild(board);
+  }
+
+  function createSetupFrame() {
+    const card = createElement('div', 'setup-card');
+    const main = createElement('div', 'setup-main');
+    appendWordmark(main);
+    main.appendChild(createElement('h1', 'sr-only', 'Letterloom'));
+    card.appendChild(main);
+
+    const side = createElement('aside', 'setup-side');
+    appendSetupBoardExcerpt(side);
+    card.appendChild(side);
+    return { card, main, side };
+  }
+
+  function appendTileChoice(row, spec) {
+    const wrap = createElement('label', 'setup-tile-choice');
+    const radio = createElement('input', 'sr-only');
+    radio.type = 'radio';
+    radio.name = spec.name;
+    radio.value = spec.value;
+    radio.checked = Boolean(spec.checked);
+    const face = createElement('span', 'setup-tile-choice-face');
+    face.appendChild(document.createTextNode(spec.letter));
+    appendDecorPoints(face, spec.points);
+    wrap.appendChild(radio);
+    wrap.appendChild(face);
+    wrap.appendChild(document.createTextNode(spec.label));
+    row.appendChild(wrap);
+    return radio;
+  }
+
+  function setSetupActive(active) {
+    if (global.document && global.document.body) {
+      global.document.body.classList.toggle('setup-active', Boolean(active));
+    }
+  }
+
   /** @typedef {{ row: number, col: number, tileId: number, letter?: string }} PendingPlacement */
 
   function clearElement(el) {
@@ -714,21 +826,17 @@
     clearElement(container);
     container.classList.add('setup-screen');
 
-    const card = createElement('div', 'setup-card');
-    card.appendChild(createElement('h1', 'setup-title', 'Letterloom'));
-    card.appendChild(createElement('p', 'setup-tagline', 'Weave words from your letter tiles.'));
+    const { card, main, side } = createSetupFrame();
 
-    const help = createElement('details', 'setup-help');
-    const helpSummary = createElement('summary', null, 'How to play');
-    help.appendChild(helpSummary);
-    appendHowToPlay(help);
-    card.appendChild(help);
+    main.appendChild(
+      createElement('p', 'setup-tagline', 'Two players, one board, a hundred tiles.')
+    );
 
     const savedGames = callbacks.savedGames || [];
 
     if (savedGames.length > 0) {
       const savesSection = createElement('div', 'setup-saves');
-      savesSection.appendChild(createElement('h2', 'setup-saves-title', 'Saved Games'));
+      savesSection.appendChild(createElement('h2', 'setup-saves-title', 'Saved games'));
 
       const list = createElement('ul', 'setup-saves-list');
       savedGames.forEach((save) => {
@@ -768,31 +876,31 @@
       });
 
       savesSection.appendChild(list);
-      card.appendChild(savesSection);
-      card.appendChild(createElement('hr', 'setup-divider'));
+      main.appendChild(savesSection);
+      main.appendChild(createElement('hr', 'setup-divider'));
     }
-
-    card.appendChild(createElement('p', 'setup-subtitle', 'Or start a new game:'));
 
     const form = createElement('form', 'setup-form');
 
     const modeField = createElement('fieldset', 'setup-fieldset');
-    const modeLegend = createElement('legend', null, 'Game mode');
+    const modeLegend = createElement('legend', null, "Who's playing");
     modeField.appendChild(modeLegend);
     const modeRow = createElement('div', 'setup-choice-row');
-    [
-      { value: 'human', label: 'Two players' },
-      { value: 'computer', label: 'Play the computer' },
-    ].forEach((choice, index) => {
-      const wrap = createElement('label', 'setup-choice');
-      const radio = createElement('input');
-      radio.type = 'radio';
-      radio.name = 'game-mode';
-      radio.value = choice.value;
-      radio.checked = index === 0;
-      wrap.appendChild(radio);
-      wrap.appendChild(document.createTextNode(choice.label));
-      modeRow.appendChild(wrap);
+    appendTileChoice(modeRow, {
+      name: 'game-mode',
+      value: 'human',
+      label: 'Two players',
+      letter: '2',
+      points: '',
+      checked: true,
+    });
+    appendTileChoice(modeRow, {
+      name: 'game-mode',
+      value: 'computer',
+      label: 'Play the computer',
+      letter: 'C',
+      points: letterPoints('C'),
+      checked: false,
     });
     modeField.appendChild(modeRow);
     form.appendChild(modeField);
@@ -826,26 +934,6 @@
     form.appendChild(humanFields);
 
     const computerFields = createElement('div', 'setup-computer-fields hidden');
-    const difficultyField = createElement('fieldset', 'setup-fieldset');
-    difficultyField.appendChild(createElement('legend', null, 'Difficulty'));
-    const difficultyRow = createElement('div', 'setup-choice-row');
-    [
-      { value: 'easy', label: 'Easy' },
-      { value: 'medium', label: 'Medium' },
-      { value: 'hard', label: 'Hard' },
-    ].forEach((choice) => {
-      const wrap = createElement('label', 'setup-choice');
-      const radio = createElement('input');
-      radio.type = 'radio';
-      radio.name = 'difficulty';
-      radio.value = choice.value;
-      radio.checked = choice.value === 'medium';
-      wrap.appendChild(radio);
-      wrap.appendChild(document.createTextNode(choice.label));
-      difficultyRow.appendChild(wrap);
-    });
-    difficultyField.appendChild(difficultyRow);
-    computerFields.appendChild(difficultyField);
 
     const humanNameField = createElement('div', 'form-field');
     const humanNameLabel = createElement('label', null, 'Your name');
@@ -860,15 +948,38 @@
     humanNameField.appendChild(humanNameInput);
     computerFields.appendChild(humanNameField);
 
+    const difficultyField = createElement('fieldset', 'setup-fieldset');
+    difficultyField.appendChild(createElement('legend', null, 'Difficulty'));
+    const difficultyRow = createElement('div', 'setup-choice-row');
+    [
+      { value: 'easy', label: 'Easy', letter: 'E' },
+      { value: 'medium', label: 'Medium', letter: 'M' },
+      { value: 'hard', label: 'Hard', letter: 'H' },
+    ].forEach((choice) => {
+      appendTileChoice(difficultyRow, {
+        name: 'difficulty',
+        value: choice.value,
+        label: choice.label,
+        letter: choice.letter,
+        points: letterPoints(choice.letter),
+        checked: choice.value === 'medium',
+      });
+    });
+    difficultyField.appendChild(difficultyRow);
+    computerFields.appendChild(difficultyField);
+
     const coachField = createElement('fieldset', 'setup-fieldset');
     coachField.appendChild(createElement('legend', null, 'Coach'));
     const coachRow = createElement('div', 'setup-choice-row');
-    const coachWrap = createElement('label', 'setup-choice');
-    const coachCheck = createElement('input');
+    const coachWrap = createElement('label', 'setup-tile-choice');
+    const coachCheck = createElement('input', 'sr-only');
     coachCheck.type = 'checkbox';
     coachCheck.id = 'coach-mode';
     coachCheck.name = 'coachMode';
+    const coachFace = createElement('span', 'setup-tile-choice-face');
+    coachFace.appendChild(document.createTextNode('?'));
     coachWrap.appendChild(coachCheck);
+    coachWrap.appendChild(coachFace);
     coachWrap.appendChild(document.createTextNode('Coach mode'));
     coachRow.appendChild(coachWrap);
     coachField.appendChild(coachRow);
@@ -881,7 +992,7 @@
     computerFields.appendChild(coachField);
 
     const seatField = createElement('div', 'form-field');
-    const seatLabel = createElement('label', null, 'Computer sits as');
+    const seatLabel = createElement('label', null, 'Computer plays as');
     seatLabel.htmlFor = 'computer-seat';
     seatField.appendChild(seatLabel);
     const seatSelect = createElement('select', 'setup-input');
@@ -914,6 +1025,7 @@
       input2.disabled = vsComputer;
       humanNameInput.disabled = !vsComputer;
       seatSelect.disabled = !vsComputer;
+      coachCheck.disabled = !vsComputer;
     }
 
     form.querySelectorAll('input[name="game-mode"]').forEach((radio) => {
@@ -944,15 +1056,15 @@
       callbacks.onStart([p1, p2], { mode: 'human' });
     });
 
-    const startBtn = createElement('button', 'btn btn-primary setup-start', 'Start Game');
+    const startBtn = createElement('button', 'btn btn-primary setup-start', 'Start game');
     startBtn.type = 'submit';
     form.appendChild(startBtn);
 
-    card.appendChild(form);
+    main.appendChild(form);
 
+    const links = createElement('div', 'setup-links');
     if (callbacks.onImport) {
-      const importSection = createElement('div', 'setup-import');
-      const importLabel = createElement('label', 'btn btn-secondary setup-import-btn', 'Import Save File');
+      const importLabel = createElement('label', 'setup-import-link setup-import-btn', 'Resume a saved match');
       importLabel.htmlFor = 'import-save-file';
       const importInput = createElement('input', 'setup-import-input');
       importInput.type = 'file';
@@ -970,16 +1082,31 @@
         }
       });
       importLabel.appendChild(importInput);
-      importSection.appendChild(importLabel);
+      links.appendChild(importLabel);
+    } else {
+      links.appendChild(createElement('span'));
+    }
+
+    const github = createElement('a', null, 'Source on GitHub');
+    github.href = 'https://github.com/stillworkinglate/letterloom';
+    links.appendChild(github);
+    main.appendChild(links);
+
+    if (callbacks.onImport) {
       const importHint = createElement(
         'p',
         'setup-import-hint',
         'Load a .json save from the saves/ folder or a download.'
       );
       importHint.id = 'import-save-hint';
-      importSection.appendChild(importHint);
-      card.appendChild(importSection);
+      main.appendChild(importHint);
     }
+
+    const help = createElement('details', 'setup-help');
+    const helpSummary = createElement('summary', null, 'How to play');
+    help.appendChild(helpSummary);
+    appendHowToPlay(help);
+    side.appendChild(help);
 
     container.appendChild(card);
 
@@ -2324,6 +2451,7 @@
       gameEl.classList.remove('hidden');
       overlayEl.classList.add('hidden');
       gameEl.inert = game.status === 'ended';
+      setSetupActive(false);
       lastAnnouncedTurn = '';
 
       if (game.status === 'ended') {
@@ -2628,6 +2756,7 @@
       gameEl.classList.remove('hidden');
       overlayEl.classList.add('hidden');
       gameEl.inert = false;
+      setSetupActive(false);
       boardFocus = { row: Engine.CENTER_ROW, col: Engine.CENTER_COL };
       lastAnnouncedTurn = '';
       const first = game.players[game.currentPlayerIndex];
@@ -2652,13 +2781,17 @@
 
     async function showSetup(importError) {
       cancelComputerTurn();
+      setSetupActive(true);
       setupEl.classList.remove('hidden');
       gameEl.classList.add('hidden');
       clearElement(setupEl);
+      setupEl.classList.add('setup-screen');
+      const loadingFrame = createSetupFrame();
       const loading = createElement('p', 'setup-loading', 'Loading dictionary…');
       loading.setAttribute('role', 'status');
       loading.setAttribute('aria-live', 'polite');
-      setupEl.appendChild(loading);
+      loadingFrame.main.appendChild(loading);
+      setupEl.appendChild(loadingFrame.card);
 
       if (options.dictionaryUrl && !options.dictionary) {
         try {
@@ -2680,16 +2813,16 @@
         } catch (err) {
           console.warn('Could not load dictionary:', err);
           clearElement(setupEl);
-          const errCard = createElement('div', 'setup-card');
-          errCard.appendChild(createElement('h1', 'setup-title', 'Letterloom'));
-          errCard.appendChild(
+          setupEl.classList.add('setup-screen');
+          const errFrame = createSetupFrame();
+          errFrame.main.appendChild(
             createElement(
               'p',
               'setup-error',
               'Could not load the word dictionary. Start a local server from the project folder (see README).'
             )
           );
-          setupEl.appendChild(errCard);
+          setupEl.appendChild(errFrame.card);
           return;
         }
       }
@@ -2703,11 +2836,13 @@
 
       if (importError) {
         const card = setupEl.querySelector('.setup-card');
-        if (card) {
+        const main = card && card.querySelector('.setup-main');
+        if (card && main) {
           const err = createElement('p', 'setup-error', importError);
           err.id = 'import-error';
           err.setAttribute('role', 'alert');
-          card.insertBefore(err, card.children[1] || null);
+          const tagline = main.querySelector('.setup-tagline');
+          main.insertBefore(err, tagline || main.children[1] || null);
           const importInput = setupEl.querySelector('#import-save-file');
           if (importInput) {
             importInput.setAttribute('aria-invalid', 'true');
