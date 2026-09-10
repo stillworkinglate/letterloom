@@ -168,8 +168,9 @@
       '3,3': 'O',
       '3,4': 'O',
       '3,5': 'M',
-      '4,3': 'A',
-      '5,3': 'K',
+      '4,2': 'A',
+      '5,2': 'T',
+      '6,2': 'E',
     };
 
     for (let r = 0; r < 7; r += 1) {
@@ -1102,11 +1103,15 @@
       main.appendChild(importHint);
     }
 
-    const help = createElement('details', 'setup-help');
-    const helpSummary = createElement('summary', null, 'How to play');
-    help.appendChild(helpSummary);
-    appendHowToPlay(help);
-    side.appendChild(help);
+    const helpBtn = createElement('button', 'setup-help-btn', 'How to play');
+    helpBtn.type = 'button';
+    helpBtn.setAttribute('aria-haspopup', 'dialog');
+    if (callbacks.onHelp) {
+      helpBtn.addEventListener('click', () => callbacks.onHelp());
+    } else {
+      helpBtn.disabled = true;
+    }
+    side.appendChild(helpBtn);
 
     container.appendChild(card);
 
@@ -1504,6 +1509,12 @@
         dialog.appendChild(actions);
         backdrop.appendChild(dialog);
         dialogHost.appendChild(backdrop);
+
+        if (config.mode === 'info') {
+          backdrop.addEventListener('click', (event) => {
+            if (event.target === backdrop) close(null);
+          });
+        }
 
         setupEl.inert = true;
         gameEl.inert = true;
@@ -2775,6 +2786,7 @@
         onImportError: (msg) => {
           showSetup(msg);
         },
+        onHelp: handleHelp,
         savedGames,
       };
     }

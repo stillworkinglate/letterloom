@@ -1345,11 +1345,17 @@ button,
     background: var(--card-deep);
     border-color: var(--tile-edge);
   }
+
+  .setup-help-btn:hover:not(:disabled) {
+    background: rgba(31, 93, 63, 0.06);
+    border-color: var(--green);
+  }
 }
 
 .board-cell:focus-visible,
 .rack-tile:focus-visible,
 .btn:focus-visible,
+.setup-help-btn:focus-visible,
 .setup-import-btn:focus-visible,
 .setup-import-link:focus-visible,
 .skip-link:focus-visible {
@@ -1378,7 +1384,13 @@ button,
   padding: 1.75rem;
   max-width: 420px;
   width: 100%;
+  max-height: min(36rem, calc(100dvh - 2rem));
+  overflow: auto;
   text-align: left;
+}
+
+.app-dialog:has(.help-list) {
+  max-width: 32rem;
 }
 
 .app-dialog-title {
@@ -1425,32 +1437,33 @@ button,
   margin-top: 0.4rem;
 }
 
-.setup-help {
-  margin: 1rem 0 0;
-  text-align: left;
+.app-dialog .help-list {
+  font-size: 0.92rem;
+  color: var(--text-muted);
 }
 
-.setup-help summary {
-  cursor: pointer;
+.setup-help-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 1rem;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  font-family: inherit;
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--green);
-  min-height: 44px;
-  display: flex;
-  align-items: center;
+  cursor: pointer;
 }
 
-.setup-help .help-list {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-  line-height: 1.55;
-  padding-left: 1.1rem;
-}
-
-.setup-help summary:focus-visible {
-  outline: 3px solid #f1c40f;
-  outline-offset: 2px;
+.setup-help-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1486,6 +1499,102 @@ button,
   .rack-tile:focus-visible,
   .btn:focus-visible {
     outline: 3px solid Highlight;
+  }
+}
+
+/* Desktop play: keep board + rack on one screen. Sidebar scrolls if needed.
+   Width ≤1000px stays with css/mobile.css (stacked + sticky rack). */
+
+@media (min-width: 1001px) {
+  :root {
+    --app-pad-y: 1rem;
+    --app-pad-x: 1.25rem;
+    --game-chrome: calc((2 * var(--app-pad-y)) + 16px + 0.75rem + 4.85rem + 2.85rem);
+    --cell-size: clamp(
+      26px,
+      calc((100dvh - var(--game-chrome) - 14 * var(--board-gap)) / 15),
+      36px
+    );
+  }
+
+  body:not(.setup-active) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  body:not(.setup-active) .letterloom-app {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: var(--app-pad-y) var(--app-pad-x);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .app-game:not(.hidden) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .game-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .board-area {
+    gap: 0.65rem;
+    min-width: 0;
+    min-height: 0;
+    justify-content: center;
+  }
+
+  .board-container,
+  .letterloom-rack {
+    flex-shrink: 0;
+  }
+
+  .direction-hint:empty {
+    display: none;
+  }
+
+  .game-sidebar {
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .app-message {
+    flex: 0 0 auto;
+    margin-top: 0.5rem;
+  }
+
+  .turn-log-list {
+    max-height: 10rem;
+  }
+}
+
+@media (min-width: 1001px) and (max-height: 800px) {
+  .status-panel,
+  .score-preview,
+  .controls-panel,
+  .save-panel {
+    padding: 0.65rem;
+  }
+
+  .status-scores,
+  .status-bag,
+  .status-last-move,
+  .status-turn-log {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+  }
+
+  .turn-log-list {
+    max-height: 7.5rem;
   }
 }
 
@@ -1536,7 +1645,7 @@ button,
     align-items: center;
   }
 
-  .setup-help {
+  .setup-help-btn {
     width: 100%;
   }
 
