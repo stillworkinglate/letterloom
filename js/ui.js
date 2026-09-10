@@ -1851,17 +1851,12 @@
 
       if (kind === 'hint') {
         if (failureMessage) {
-          if (hintRestore) {
-            pendingPlacements = hintRestore.pendingPlacements;
-            selectedTileId = hintRestore.selectedTileId;
-            exchangeMode = hintRestore.exchangeMode;
-            exchangeTileIds = hintRestore.exchangeTileIds;
-          }
+          restoreHintStaging();
           showMessage(failureMessage, true);
         } else {
+          hintRestore = null;
           applyHintAction(action);
         }
-        hintRestore = null;
         refresh();
         return;
       }
@@ -1906,15 +1901,16 @@
     }
 
     function sendCoachRequest(kind, snapshot, extras = {}) {
+      coachKind = kind;
+      coachThen = extras.then || null;
+      coachContext = extras.context || null;
+
       if (!game || !AI) {
         finishCoachRequest(null, 'Coach is unavailable.');
         return;
       }
 
       const requestId = (coachRequestId += 1);
-      coachKind = kind;
-      coachThen = extras.then || null;
-      coachContext = extras.context || null;
       coachBusy = true;
 
       const payload = {
@@ -2185,6 +2181,15 @@
       refresh();
     }
 
+    function restoreHintStaging() {
+      if (!hintRestore) return;
+      pendingPlacements = hintRestore.pendingPlacements;
+      selectedTileId = hintRestore.selectedTileId;
+      exchangeMode = hintRestore.exchangeMode;
+      exchangeTileIds = hintRestore.exchangeTileIds;
+      hintRestore = null;
+    }
+
     function handleHint() {
       if (!game || !isCoachEnabled() || isHumanLocked() || exchangeMode || game.status !== 'playing') {
         return;
@@ -2199,7 +2204,9 @@
       selectedTileId = null;
       const snapshot = clonePublicSnapshot(humanPlayerIndex());
       if (!snapshot) {
+        restoreHintStaging();
         showMessage('Hint is unavailable.', true);
+        refresh();
         return;
       }
       sendCoachRequest('hint', snapshot);
