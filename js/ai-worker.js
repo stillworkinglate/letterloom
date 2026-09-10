@@ -10,7 +10,9 @@ function fail(requestId, error, purpose) {
   self.postMessage({
     type: 'error',
     requestId,
-    purpose: purpose || 'think',
+    purpose:
+      purpose ||
+      (typeof requestId === 'string' && String(requestId).indexOf('coach-') === 0 ? 'coach' : 'think'),
     error: error && error.message ? error.message : String(error || 'Worker failed.'),
   });
 }
@@ -38,7 +40,7 @@ self.onmessage = function onMessage(event) {
       self.postMessage({
         type: 'result',
         requestId: msg.requestId,
-        purpose: msg.purpose || 'think',
+        purpose: msg.purpose || (typeof msg.requestId === 'string' && String(msg.requestId).indexOf('coach-') === 0 ? 'coach' : 'think'),
         result,
       });
       return;

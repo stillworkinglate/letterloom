@@ -1099,6 +1099,12 @@
     }
 
     const actions = createElement('div', 'game-over-actions');
+    if (callbacks.onTakeBack) {
+      const takeBackBtn = createElement('button', 'btn', 'Take Back');
+      takeBackBtn.type = 'button';
+      takeBackBtn.addEventListener('click', () => callbacks.onTakeBack());
+      actions.appendChild(takeBackBtn);
+    }
     if (callbacks.onRematch) {
       const rematchBtn = createElement('button', 'btn btn-primary', 'Rematch');
       rematchBtn.type = 'button';
@@ -1200,6 +1206,18 @@
     let coachContext = null;
     let coachBusy = false;
     let pendingCoach = null;
+    let hintRestore = null;
+
+    function coachPayloadId(id) {
+      return `coach-${id}`;
+    }
+
+    function parseCoachRequestId(requestId) {
+      if (typeof requestId === 'string' && requestId.indexOf('coach-') === 0) {
+        return Number(requestId.slice(6));
+      }
+      return NaN;
+    }
 
     const AI = global.LetterloomAI;
 
@@ -1469,8 +1487,10 @@
       coachRequestId += 1;
       coachKind = null;
       coachThen = null;
+      coachContext = null;
       coachBusy = false;
       pendingCoach = null;
+      hintRestore = null;
     }
 
     function humanPlayerIndex() {
@@ -1498,7 +1518,7 @@
       const msg = event.data || {};
       if (msg.type === 'ready') {
         aiWorkerReady = true;
-        if (pendingCoach && pendingCoach.requestId === coachRequestId && aiWorker) {
+        if (pendingCoach && pendingCoach.requestId === coachPayloadId(coachRequestId) && aiWorker) {
           const queued = pendingCoach;
           pendingCoach = null;
           aiWorker.postMessage(queued);
@@ -1510,10 +1530,8 @@
         }
         return;
       }
-      if (msg.purpose === 'coach' || (typeof msg.requestId === 'string' && String(msg.requestId).indexOf('coach-') === 0)) {
-        const id = typeof msg.requestId === 'string'
-          ? Number(String(msg.requestId).slice(6))
-          : msg.requestId;
+      if (msg.purpose === 'coach' || parseCoachRequestId(msg.requestId) === coachRequestId) {
+        const id = parseCoachRequestId(msg.requestId);
         if (id !== coachRequestId) return;
         if (msg.type === 'error') {
           finishCoachRequest(null, msg.error || 'Hint search failed.');
@@ -1551,7 +1569,7 @@
             }
           }
           aiWorker = null;
-          if (coachBusy && pendingCoach && pendingCoach.requestId === coachRequestId) {
+          if (coachBusy && pendingCoach && pendingCoach.requestId === coachPayloadId(coachRequestId)) {
             const queued = pendingCoach;
             pendingCoach = null;
             runCoachLocal(queued.requestId, queued.snapshot, queued.purpose);
@@ -1833,10 +1851,17 @@
 
       if (kind === 'hint') {
         if (failureMessage) {
+          if (hintRestore) {
+            pendingPlacements = hintRestore.pendingPlacements;
+            selectedTileId = hintRestore.selectedTileId;
+            exchangeMode = hintRestore.exchangeMode;
+            exchangeTileIds = hintRestore.exchangeTileIds;
+          }
           showMessage(failureMessage, true);
         } else {
           applyHintAction(action);
         }
+        hintRestore = null;
         refresh();
         return;
       }
@@ -1856,8 +1881,9 @@
     }
 
     function runCoachLocal(requestId, snapshot, kind) {
+      const numericId = typeof requestId === 'string' ? parseCoachRequestId(requestId) : requestId;
       global.setTimeout(() => {
-        if (requestId !== coachRequestId) return;
+        if (numericId !== coachRequestId) return;
         try {
           const index = ensureLocalIndex();
           if (!index || !AI) {
@@ -1870,10 +1896,10 @@
             index,
             engine: Engine,
           });
-          if (requestId !== coachRequestId) return;
+          if (numericId !== coachRequestId) return;
           finishCoachRequest(result);
         } catch (err) {
-          if (requestId !== coachRequestId) return;
+          if (numericId !== coachRequestId) return;
           finishCoachRequest(null, err.message || 'Hint search failed.');
         }
       }, 0);
@@ -1893,7 +1919,7 @@
 
       const payload = {
         type: 'think',
-        requestId,
+        requestId: coachPayloadId(requestId),
         purpose: 'coach',
         snapshot,
         difficulty: 'hard',
@@ -2163,6 +2189,12 @@
       if (!game || !isCoachEnabled() || isHumanLocked() || exchangeMode || game.status !== 'playing') {
         return;
       }
+      hintRestore = {
+        pendingPlacements: pendingPlacements.slice(),
+        selectedTileId,
+        exchangeMode,
+        exchangeTileIds: exchangeTileIds.slice(),
+      };
       pendingPlacements = [];
       selectedTileId = null;
       const snapshot = clonePublicSnapshot(humanPlayerIndex());
@@ -2174,7 +2206,9 @@
     }
 
     async function handleTakeBack() {
-      if (!game || !takeBackSnapshot || isHumanLocked() || game.status !== 'playing') return;
+      if (!game || !takeBackSnapshot) return;
+      if (game.status === 'playing' && isHumanLocked()) return;
+      if (game.status !== 'playing' && game.status !== 'ended') return;
 
       const confirmed = await openModal({
         mode: 'confirm',
@@ -2186,7 +2220,7 @@
         confirmLabel: 'Take Back',
         cancelLabel: 'Cancel',
       });
-      if (!confirmed || !takeBackSnapshot || !game || game.status !== 'playing') return;
+      if (!confirmed || !takeBackSnapshot || !game) return;
 
       cancelComputerTurn();
       const undone = (game.history || []).slice(
@@ -2200,6 +2234,11 @@
       Engine.recordTakeBack(game, undone, actorIndex);
       clearTakeBack();
       resetTurnState();
+      overlayEl.classList.add('hidden');
+      overlayEl.removeAttribute('role');
+      overlayEl.removeAttribute('aria-modal');
+      overlayEl.removeAttribute('aria-labelledby');
+      gameEl.inert = false;
       showMessage('Last turn taken back. The bag was reshuffled.');
       persistState();
       refresh();
@@ -2411,6 +2450,7 @@
       renderGameOver(overlayEl, game, {
         onNewGame: handleNewGame,
         onRematch: handleRematch,
+        onTakeBack: takeBackSnapshot ? handleTakeBack : null,
       });
       overlayEl.classList.remove('hidden');
       overlayEl.setAttribute('role', 'dialog');
@@ -2503,7 +2543,10 @@
           canPlay: validation.ok === true && !locked,
           canExchange: game.bag.length >= Engine.MIN_BAG_FOR_EXCHANGE && !exchangeMode && !locked,
           canHint: isCoachEnabled() && game.status === 'playing' && !exchangeMode,
-          canTakeBack: Boolean(takeBackSnapshot) && game.status === 'playing' && !exchangeMode,
+          canTakeBack:
+            Boolean(takeBackSnapshot) &&
+            (game.status === 'playing' || game.status === 'ended') &&
+            !exchangeMode,
           coachBusy,
           bagCount: game.bag.length,
           locked,

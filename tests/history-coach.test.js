@@ -232,6 +232,32 @@ test('exchange keeps S and blanks instead of dumping the rack', () => {
   assert.ok(action.tileIds.includes(1), 'should dump Q');
 });
 
+test('take-back log still writes after the game has ended', () => {
+  const words = new Set(['AT']);
+  const game = Engine.createGame(['Ada', 'Bea'], {
+    firstPlayerIndex: 0,
+    dictionary: words,
+  });
+  game.players[0].rack = [tile(1, 'A'), tile(2, 'T')];
+  const historyBefore = game.history.slice();
+  const play = Engine.applyMove(
+    game,
+    [
+      { row: 7, col: 7, tileId: 1 },
+      { row: 7, col: 8, tileId: 2 },
+    ],
+    'horizontal'
+  );
+  assert.ok(play.ok, play.error);
+  game.status = 'ended';
+  game.endReason = 'last_tile_played';
+  const undone = game.history.slice(historyBefore.length);
+  game.history = historyBefore.slice();
+  const entry = Engine.recordTakeBack(game, undone, 0);
+  assert.strictEqual(entry.type, 'takeback');
+  assert.strictEqual(game.history[game.history.length - 1].type, 'takeback');
+});
+
 test('ugly-only racks still exchange every tile', () => {
   const rack = [tile(1, 'Z'), tile(2, 'Q'), tile(3, 'J')];
   const action = AI.chooseExchange(rack, 20, Engine);
