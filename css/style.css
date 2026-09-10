@@ -997,7 +997,8 @@ button,
 
 .status-scores,
 .status-bag,
-.status-last-move {
+.status-last-move,
+.status-turn-log {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--panel-border);
@@ -1036,6 +1037,47 @@ button,
 .last-move-detail {
   margin: 0;
   font-size: 0.9rem;
+}
+
+.turn-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.turn-log-item {
+  margin: 0;
+  padding: 0.28rem 0;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.turn-log-item:last-child {
+  border-bottom: none;
+}
+
+.turn-log-taken-back {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.turn-log-coach {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.turn-log-takeback {
+  font-weight: 600;
+}
+
+.turn-log-empty,
+.turn-log-more {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 /* Score preview */
@@ -1250,9 +1292,17 @@ button,
   color: var(--accent);
 }
 
+.game-over-best {
+  margin: 0 0 1.15rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
 .game-over-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 0.55rem;
 }
 
 /* Hover affordances — only when a real fine pointer can hover

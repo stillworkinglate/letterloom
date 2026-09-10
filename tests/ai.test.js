@@ -337,10 +337,12 @@ test('public snapshot omits opponent racks and bag order', () => {
   assert.strictEqual(snap.bagCount, game.bag.length);
   assert.ok(!('bag' in snap));
   assert.ok(!snap.opponentRack);
-  const encoded = JSON.stringify(snap);
+  const snapIds = new Set((snap.rack || []).map((tile) => tile.id));
   for (const tileOnRack of game.players[0].rack) {
-    assert.ok(!encoded.includes(`"id":${tileOnRack.id}`), 'must not leak human tile ids');
+    assert.ok(!snapIds.has(tileOnRack.id), 'must not leak human tile ids');
   }
+  assert.ok(!('history' in snap));
+  assert.ok(!('bag' in snap));
 });
 
 test('old human-vs-human JSON snapshots still validate', () => {

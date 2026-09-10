@@ -347,9 +347,14 @@
   /* Compact status chrome */
   .status-scores,
   .status-bag,
-  .status-last-move {
+  .status-last-move,
+  .status-turn-log {
     margin-top: 0.75rem;
     padding-top: 0.75rem;
+  }
+
+  .turn-log-list {
+    max-height: 10.5rem;
   }
 
   .direction-hint {
