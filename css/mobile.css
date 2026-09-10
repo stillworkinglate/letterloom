@@ -172,11 +172,11 @@
   }
 
   .status-heading {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
   .status-current-player {
-    font-size: 1.15rem;
+    font-size: 1.25rem;
   }
 
   .preview-total {
@@ -260,14 +260,8 @@
     z-index: 30;
     /* Extend background into safe-area so tiles don’t sit under home indicator */
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: linear-gradient(
-      180deg,
-      rgba(232, 240, 232, 0) 0%,
-      #dfe8df 18%,
-      #d4e4d4 100%
-    );
-    /* Soft lift so sticky rack separates from content scrolling under it */
-    box-shadow: 0 -6px 12px -8px rgba(0, 0, 0, 0.18);
+    background: var(--felt-dark);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .rack-slots {
