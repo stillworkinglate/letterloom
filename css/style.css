@@ -1509,9 +1509,19 @@ button,
   :root {
     --app-pad-y: 1rem;
     --app-pad-x: 1.25rem;
-    --game-chrome: calc((2 * var(--app-pad-y)) + 16px + 0.75rem + 4.85rem + 2.85rem);
+    /* Pads, board inset, gaps, rack, start message, think banner, safe area. */
+    --game-chrome: calc(
+      (2 * var(--app-pad-y))
+      + env(safe-area-inset-top, 0px)
+      + env(safe-area-inset-bottom, 0px)
+      + 16px
+      + 1.4rem
+      + 5.25rem
+      + 3.35rem
+      + 2.4rem
+    );
     --cell-size: clamp(
-      26px,
+      22px,
       calc((100dvh - var(--game-chrome) - 14 * var(--board-gap)) / 15),
       36px
     );
@@ -1525,7 +1535,10 @@ button,
   body:not(.setup-active) .letterloom-app {
     height: 100dvh;
     max-height: 100dvh;
-    padding: var(--app-pad-y) var(--app-pad-x);
+    padding: max(var(--app-pad-y), env(safe-area-inset-top, 0px))
+      max(var(--app-pad-x), env(safe-area-inset-right, 0px))
+      max(var(--app-pad-y), env(safe-area-inset-bottom, 0px))
+      max(var(--app-pad-x), env(safe-area-inset-left, 0px));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1548,7 +1561,9 @@ button,
     gap: 0.65rem;
     min-width: 0;
     min-height: 0;
-    justify-content: center;
+    justify-content: flex-start;
+    overflow: auto;
+    overscroll-behavior: contain;
   }
 
   .board-container,
@@ -1556,20 +1571,47 @@ button,
     flex-shrink: 0;
   }
 
+  .board-cell {
+    font-size: clamp(0.55rem, calc(var(--cell-size) * 0.28), 0.7rem);
+  }
+
+  .tile-letter {
+    font-size: clamp(0.7rem, calc(var(--cell-size) * 0.5), 1.15rem);
+  }
+
+  .tile-small .tile-letter {
+    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
+  }
+
+  .tile-points {
+    font-size: clamp(0.5rem, calc(var(--cell-size) * 0.22), 0.65rem);
+  }
+
+  .center-star {
+    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
+  }
+
   .direction-hint:empty {
     display: none;
   }
 
+  .computer-think-banner {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.9rem;
+  }
+
   .game-sidebar {
     max-height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: auto;
     overscroll-behavior: contain;
+    padding-inline: 3px;
   }
 
   .app-message {
     flex: 0 0 auto;
     margin-top: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
   }
 
   .turn-log-list {

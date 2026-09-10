@@ -1105,6 +1105,7 @@
 
     const helpBtn = createElement('button', 'setup-help-btn', 'How to play');
     helpBtn.type = 'button';
+    helpBtn.dataset.focusId = 'setup-help';
     helpBtn.setAttribute('aria-haspopup', 'dialog');
     if (callbacks.onHelp) {
       helpBtn.addEventListener('click', () => callbacks.onHelp());
@@ -1428,6 +1429,11 @@
 
     function openModal(config) {
       return new Promise((resolve) => {
+        const opener =
+          global.document && global.document.activeElement && root.contains(global.document.activeElement)
+            ? global.document.activeElement
+            : null;
+        rememberFocus();
         dialogOpen = true;
         clearElement(dialogHost);
         dialogHost.classList.remove('hidden');
@@ -1440,6 +1446,9 @@
 
         const title = createElement('h2', 'app-dialog-title', config.title);
         title.id = 'letterloom-dialog-title';
+        if (config.mode === 'info') {
+          title.tabIndex = -1;
+        }
         dialog.appendChild(title);
 
         if (config.message) {
@@ -1480,6 +1489,12 @@
         }
 
         if (config.body) {
+          if (!config.body.id) {
+            config.body.id = 'letterloom-dialog-body';
+          }
+          if (!dialog.getAttribute('aria-describedby')) {
+            dialog.setAttribute('aria-describedby', config.body.id);
+          }
           dialog.appendChild(config.body);
         }
 
@@ -1529,7 +1544,11 @@
           overlayEl.inert = false;
           dialogOpen = false;
           resolve(value);
-          restoreFocus();
+          if (opener && opener.isConnected && typeof opener.focus === 'function' && !opener.disabled) {
+            opener.focus();
+          } else {
+            restoreFocus();
+          }
         }
 
         function onKey(event) {
@@ -1555,6 +1574,7 @@
         global.document.addEventListener('keydown', onKey);
 
         const initial =
+          (config.mode === 'info' && title) ||
           input ||
           dialog.querySelector(config.mode === 'letters' ? '.letter-picker button' : '.btn-primary') ||
           cancelBtn;
@@ -2567,6 +2587,7 @@
 
       cancelComputerTurn();
       clearTakeBack();
+      lastFocus = null;
       game = null;
       activeSaveId = null;
       activeSaveName = null;
@@ -2737,6 +2758,7 @@
 
     function handleHelp() {
       const body = createElement('div');
+      body.id = 'letterloom-help-body';
       appendHowToPlay(body);
       openModal({
         mode: 'info',
