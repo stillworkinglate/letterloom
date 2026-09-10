@@ -1534,6 +1534,7 @@
         setupEl.inert = true;
         gameEl.inert = true;
         overlayEl.inert = true;
+        skipNav.inert = true;
 
         function close(value) {
           global.document.removeEventListener('keydown', onKey);
@@ -1542,6 +1543,7 @@
           setupEl.inert = false;
           gameEl.inert = Boolean(game && game.status === 'ended');
           overlayEl.inert = false;
+          skipNav.inert = false;
           dialogOpen = false;
           resolve(value);
           if (opener && opener.isConnected && typeof opener.focus === 'function' && !opener.disabled) {
@@ -1562,10 +1564,14 @@
           if (focusable.length === 0) return;
           const first = focusable[0];
           const last = focusable[focusable.length - 1];
-          if (event.shiftKey && global.document.activeElement === first) {
+          const active = global.document.activeElement;
+          if (event.shiftKey && (active === first || active === title)) {
             event.preventDefault();
             last.focus();
-          } else if (!event.shiftKey && global.document.activeElement === last) {
+          } else if (!event.shiftKey && active === last) {
+            event.preventDefault();
+            first.focus();
+          } else if (!event.shiftKey && active === title) {
             event.preventDefault();
             first.focus();
           }

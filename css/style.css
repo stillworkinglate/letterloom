@@ -166,9 +166,9 @@ button,
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 3px 6px rgba(0, 0, 0, 0.45);
   text-align: left;
   width: 100%;
-  max-width: 720px;
+  max-width: 800px;
   display: grid;
-  grid-template-columns: 1fr 200px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
   overflow: hidden;
   padding: 0;
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -183,8 +183,11 @@ button,
 .setup-side {
   background: var(--card-deep);
   border-left: 1px solid var(--rule);
-  padding: 1.6rem 22px 1.6rem;
+  padding: 1.6rem 12px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .setup-wordmark {
@@ -523,16 +526,19 @@ button,
 
 .setup-board-excerpt {
   display: grid;
-  grid-template-columns: repeat(7, 34px);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
   background: var(--felt);
   border-radius: 2px;
-  width: max-content;
+  width: 100%;
+  max-width: 100%;
 }
 
 .setup-excerpt-cell {
-  height: 34px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   background: var(--board-cell);
   font-size: 8px;
   font-weight: 700;
@@ -540,6 +546,7 @@ button,
   place-items: center;
   color: rgba(0, 0, 0, 0.5);
   position: relative;
+  min-width: 0;
 }
 
 .setup-excerpt-alt {
@@ -564,7 +571,7 @@ button,
 .setup-excerpt-star {
   background: var(--dw);
   color: var(--star);
-  font-size: 20px;
+  font-size: clamp(14px, 2.4vw, 20px);
 }
 
 .setup-excerpt-tile {
@@ -572,7 +579,7 @@ button,
   border: 1px solid var(--tile-edge);
   box-shadow: 0 2px 0 var(--tile-shadow);
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 15px;
+  font-size: clamp(12px, 1.6vw, 15px);
   font-weight: 700;
   color: var(--ink);
   z-index: 1;
