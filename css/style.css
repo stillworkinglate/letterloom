@@ -1399,6 +1399,15 @@ button,
   color: var(--accent);
 }
 
+.app-dialog-title:focus {
+  outline: none;
+}
+
+.app-dialog-title:focus-visible {
+  outline: 3px solid #f1c40f;
+  outline-offset: 2px;
+}
+
 .app-dialog-message {
   margin: 0 0 1rem;
   color: var(--text-muted);
