@@ -166,9 +166,9 @@ button,
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 3px 6px rgba(0, 0, 0, 0.45);
   text-align: left;
   width: 100%;
-  max-width: 800px;
+  max-width: 760px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
   overflow: hidden;
   padding: 0;
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -191,7 +191,7 @@ button,
 }
 
 .setup-wordmark {
-  display: inline-flex;
+  display: flex;
   gap: 4px;
   padding: 8px 10px 7px;
   background: var(--wood);
@@ -199,23 +199,27 @@ button,
   border-radius: 3px;
   margin-bottom: 1rem;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 .setup-wordmark-tile {
-  width: 34px;
-  height: 38px;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: 34px;
+  height: auto;
+  aspect-ratio: 34 / 38;
   border-radius: 3px;
   background: var(--tile);
   border: 1px solid var(--tile-edge);
   box-shadow: 0 2px 0 var(--tile-shadow);
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-weight: 700;
-  font-size: 20px;
+  font-size: clamp(12px, 2.4vw, 20px);
   color: var(--ink);
   display: grid;
   place-items: center;
   position: relative;
-  flex-shrink: 0;
 }
 
 .setup-wordmark-tile i {
