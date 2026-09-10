@@ -166,9 +166,9 @@ button,
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 3px 6px rgba(0, 0, 0, 0.45);
   text-align: left;
   width: 100%;
-  max-width: 720px;
+  max-width: 760px;
   display: grid;
-  grid-template-columns: 1fr 200px;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
   overflow: hidden;
   padding: 0;
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -183,12 +183,15 @@ button,
 .setup-side {
   background: var(--card-deep);
   border-left: 1px solid var(--rule);
-  padding: 1.6rem 22px 1.6rem;
+  padding: 1.6rem 12px;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .setup-wordmark {
-  display: inline-flex;
+  display: flex;
   gap: 4px;
   padding: 8px 10px 7px;
   background: var(--wood);
@@ -196,23 +199,27 @@ button,
   border-radius: 3px;
   margin-bottom: 1rem;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 .setup-wordmark-tile {
-  width: 34px;
-  height: 38px;
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: 34px;
+  height: auto;
+  aspect-ratio: 34 / 38;
   border-radius: 3px;
   background: var(--tile);
   border: 1px solid var(--tile-edge);
   box-shadow: 0 2px 0 var(--tile-shadow);
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-weight: 700;
-  font-size: 20px;
+  font-size: clamp(12px, 2.4vw, 20px);
   color: var(--ink);
   display: grid;
   place-items: center;
   position: relative;
-  flex-shrink: 0;
 }
 
 .setup-wordmark-tile i {
@@ -523,16 +530,19 @@ button,
 
 .setup-board-excerpt {
   display: grid;
-  grid-template-columns: repeat(7, 34px);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
   background: var(--felt);
   border-radius: 2px;
-  width: max-content;
+  width: 100%;
+  max-width: 100%;
 }
 
 .setup-excerpt-cell {
-  height: 34px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   background: var(--board-cell);
   font-size: 8px;
   font-weight: 700;
@@ -540,6 +550,7 @@ button,
   place-items: center;
   color: rgba(0, 0, 0, 0.5);
   position: relative;
+  min-width: 0;
 }
 
 .setup-excerpt-alt {
@@ -564,7 +575,7 @@ button,
 .setup-excerpt-star {
   background: var(--dw);
   color: var(--star);
-  font-size: 20px;
+  font-size: clamp(14px, 2.4vw, 20px);
 }
 
 .setup-excerpt-tile {
@@ -572,7 +583,7 @@ button,
   border: 1px solid var(--tile-edge);
   box-shadow: 0 2px 0 var(--tile-shadow);
   font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 15px;
+  font-size: clamp(12px, 1.6vw, 15px);
   font-weight: 700;
   color: var(--ink);
   z-index: 1;
@@ -1345,11 +1356,17 @@ button,
     background: var(--card-deep);
     border-color: var(--tile-edge);
   }
+
+  .setup-help-btn:hover:not(:disabled) {
+    background: rgba(31, 93, 63, 0.06);
+    border-color: var(--green);
+  }
 }
 
 .board-cell:focus-visible,
 .rack-tile:focus-visible,
 .btn:focus-visible,
+.setup-help-btn:focus-visible,
 .setup-import-btn:focus-visible,
 .setup-import-link:focus-visible,
 .skip-link:focus-visible {
@@ -1378,13 +1395,28 @@ button,
   padding: 1.75rem;
   max-width: 420px;
   width: 100%;
+  max-height: min(36rem, calc(100dvh - 2rem));
+  overflow: auto;
   text-align: left;
+}
+
+.app-dialog:has(.help-list) {
+  max-width: 32rem;
 }
 
 .app-dialog-title {
   margin: 0 0 0.5rem;
   font-size: 1.35rem;
   color: var(--accent);
+}
+
+.app-dialog-title:focus {
+  outline: none;
+}
+
+.app-dialog-title:focus-visible {
+  outline: 3px solid #f1c40f;
+  outline-offset: 2px;
 }
 
 .app-dialog-message {
@@ -1425,32 +1457,33 @@ button,
   margin-top: 0.4rem;
 }
 
-.setup-help {
-  margin: 1rem 0 0;
-  text-align: left;
+.app-dialog .help-list {
+  font-size: 0.92rem;
+  color: var(--text-muted);
 }
 
-.setup-help summary {
-  cursor: pointer;
+.setup-help-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 1rem;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  font-family: inherit;
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--green);
-  min-height: 44px;
-  display: flex;
-  align-items: center;
+  cursor: pointer;
 }
 
-.setup-help .help-list {
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-  line-height: 1.55;
-  padding-left: 1.1rem;
-}
-
-.setup-help summary:focus-visible {
-  outline: 3px solid #f1c40f;
-  outline-offset: 2px;
+.setup-help-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1486,6 +1519,144 @@ button,
   .rack-tile:focus-visible,
   .btn:focus-visible {
     outline: 3px solid Highlight;
+  }
+}
+
+/* Desktop play: keep board + rack on one screen. Sidebar scrolls if needed.
+   Width ≤1000px stays with css/mobile.css (stacked + sticky rack). */
+
+@media (min-width: 1001px) {
+  :root {
+    --app-pad-y: 1rem;
+    --app-pad-x: 1.25rem;
+    /* Pads, board inset, gaps, rack, start message, think banner, safe area. */
+    --game-chrome: calc(
+      (2 * var(--app-pad-y))
+      + env(safe-area-inset-top, 0px)
+      + env(safe-area-inset-bottom, 0px)
+      + 16px
+      + 1.4rem
+      + 5.25rem
+      + 3.35rem
+      + 2.4rem
+    );
+    --cell-size: clamp(
+      22px,
+      calc((100dvh - var(--game-chrome) - 14 * var(--board-gap)) / 15),
+      36px
+    );
+  }
+
+  body:not(.setup-active) {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  body:not(.setup-active) .letterloom-app {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding: max(var(--app-pad-y), env(safe-area-inset-top, 0px))
+      max(var(--app-pad-x), env(safe-area-inset-right, 0px))
+      max(var(--app-pad-y), env(safe-area-inset-bottom, 0px))
+      max(var(--app-pad-x), env(safe-area-inset-left, 0px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .app-game:not(.hidden) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .game-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .board-area {
+    gap: 0.65rem;
+    min-width: 0;
+    min-height: 0;
+    justify-content: flex-start;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .board-container,
+  .letterloom-rack {
+    flex-shrink: 0;
+  }
+
+  .board-cell {
+    font-size: clamp(0.55rem, calc(var(--cell-size) * 0.28), 0.7rem);
+  }
+
+  .tile-letter {
+    font-size: clamp(0.7rem, calc(var(--cell-size) * 0.5), 1.15rem);
+  }
+
+  .tile-small .tile-letter {
+    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
+  }
+
+  .tile-points {
+    font-size: clamp(0.5rem, calc(var(--cell-size) * 0.22), 0.65rem);
+  }
+
+  .center-star {
+    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
+  }
+
+  .direction-hint:empty {
+    display: none;
+  }
+
+  .computer-think-banner {
+    padding: 0.4rem 0.65rem;
+    font-size: 0.9rem;
+  }
+
+  .game-sidebar {
+    max-height: 100%;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-inline: 3px;
+  }
+
+  .app-message {
+    flex: 0 0 auto;
+    margin-top: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .turn-log-list {
+    max-height: 10rem;
+  }
+}
+
+@media (min-width: 1001px) and (max-height: 800px) {
+  .status-panel,
+  .score-preview,
+  .controls-panel,
+  .save-panel {
+    padding: 0.65rem;
+  }
+
+  .status-scores,
+  .status-bag,
+  .status-last-move,
+  .status-turn-log {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+  }
+
+  .turn-log-list {
+    max-height: 7.5rem;
   }
 }
 
@@ -1536,7 +1707,7 @@ button,
     align-items: center;
   }
 
-  .setup-help {
+  .setup-help-btn {
     width: 100%;
   }
 
