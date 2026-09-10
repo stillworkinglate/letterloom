@@ -575,6 +575,7 @@ button,
   font-size: 15px;
   font-weight: 700;
   color: var(--ink);
+  z-index: 1;
 }
 
 .setup-excerpt-tile i {
