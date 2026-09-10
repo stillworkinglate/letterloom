@@ -6,10 +6,11 @@ importScripts('engine.js', 'ai.js');
 
 let index = null;
 
-function fail(requestId, error) {
+function fail(requestId, error, purpose) {
   self.postMessage({
     type: 'error',
     requestId,
+    purpose: purpose || 'think',
     error: error && error.message ? error.message : String(error || 'Worker failed.'),
   });
 }
@@ -25,7 +26,7 @@ self.onmessage = function onMessage(event) {
 
     if (msg.type === 'think') {
       if (!index) {
-        fail(msg.requestId, new Error('Dictionary index is not ready.'));
+        fail(msg.requestId, new Error('Dictionary index is not ready.'), msg.purpose);
         return;
       }
       const result = LetterloomAI.decideTurn(msg.snapshot, {
@@ -34,10 +35,15 @@ self.onmessage = function onMessage(event) {
         index,
         engine: LetterloomEngine,
       });
-      self.postMessage({ type: 'result', requestId: msg.requestId, result });
+      self.postMessage({
+        type: 'result',
+        requestId: msg.requestId,
+        purpose: msg.purpose || 'think',
+        result,
+      });
       return;
     }
   } catch (err) {
-    fail(msg.requestId, err);
+    fail(msg.requestId, err, msg.purpose);
   }
 };
