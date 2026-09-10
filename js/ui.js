@@ -23,7 +23,62 @@
     'Exchange tiles only when at least 7 tiles remain in the bag.',
     'Playing all 7 tiles in one turn scores a 50-point bonus.',
     'You can play another person on the same screen, or play the computer on Easy, Medium, or Hard. The computer uses the same dictionary and rules.',
+    'Take back undoes the turn you just made. Against the computer it also undoes the reply, and the bag is reshuffled.',
+    'Coach mode (vs the computer, chosen at the start) adds Hint and a best-available note after your turns.',
   ];
+
+  function playerNameAt(game, index, fallbackName) {
+    if (fallbackName) return fallbackName;
+    if (game && game.players && game.players[index]) return game.players[index].name;
+    return 'Player';
+  }
+
+  function formatHistoryLine(entry, game) {
+    if (!entry) return '';
+    const name = playerNameAt(game, entry.playerIndex, entry.playerName);
+    const turn = entry.turnNumber != null ? `T${entry.turnNumber} · ` : '';
+
+    if (entry.type === 'coach') {
+      if (entry.action === 'exchange') {
+        return `Best available: exchange ${entry.exchangeLetters || 'tiles'}`;
+      }
+      if (entry.action === 'pass') {
+        return 'Best available: pass';
+      }
+      const words = (entry.words || []).join(', ') || 'a play';
+      const score = entry.score != null ? ` for ${entry.score}` : '';
+      return `Best available: ${words}${score}`;
+    }
+
+    if (entry.type === 'takeback') {
+      return `${name} took back.`;
+    }
+
+    if (entry.type === 'exchange') {
+      const letters = entry.exchangeLetters ? ` (${entry.exchangeLetters})` : '';
+      return `${turn}${name} exchanged ${entry.exchange} tile(s)${letters}`;
+    }
+
+    if (entry.type === 'pass') {
+      return `${turn}${name} passed.`;
+    }
+
+    if (entry.type === 'play') {
+      const words = (entry.words || []).join(', ') || 'a word';
+      return `${turn}${name} played ${words} for ${entry.score} pts`;
+    }
+
+    return `${turn}${name}`;
+  }
+
+  function bestPlayFromHistory(game) {
+    let best = null;
+    for (const entry of game && game.history ? game.history : []) {
+      if (entry.type !== 'play' || entry.takenBack) continue;
+      if (!best || (entry.score || 0) > (best.score || 0)) best = entry;
+    }
+    return best;
+  }
 
   function describeBoardCell(row, col, placed, pendingDisplay, premium) {
     const parts = [`Row ${row + 1}, column ${col + 1}`];
@@ -409,35 +464,33 @@
     );
     container.appendChild(bagEl);
 
-    if (game.lastMove) {
-      const lastEl = createElement('div', 'status-last-move');
-      lastEl.appendChild(createElement('h3', 'status-subheading', 'Last Move'));
-      const lm = game.lastMove;
-      const mover = game.players[lm.playerIndex];
+    const history = Array.isArray(game.history) ? game.history : [];
+    const logEl = createElement('div', 'status-turn-log');
+    logEl.appendChild(createElement('h3', 'status-subheading', 'Turn Log'));
 
-      if (lm.pass) {
-        lastEl.appendChild(createElement('p', null, `${mover.name} passed.`));
-      } else if (lm.exchange) {
-        lastEl.appendChild(
-          createElement('p', null, `${mover.name} exchanged ${lm.exchange} tile(s).`)
-        );
-      } else if (lm.words) {
-        const detail = createElement('p', 'last-move-detail');
-        detail.textContent = `${mover.name} played ${lm.words.join(', ')} for ${lm.score} pts`;
-        lastEl.appendChild(detail);
-        if (lm.breakdown && lm.breakdown.length > 1) {
-          const breakdown = createElement('ul', 'score-breakdown');
-          lm.breakdown.forEach((entry) => {
-            breakdown.appendChild(
-              createElement('li', null, `${entry.word}: ${entry.score}`)
-            );
-          });
-          lastEl.appendChild(breakdown);
-        }
+    if (history.length === 0) {
+      logEl.appendChild(createElement('p', 'turn-log-empty', 'No moves yet.'));
+    } else {
+      const list = createElement('ol', 'turn-log-list');
+      const start = Math.max(0, history.length - 16);
+      for (let i = history.length - 1; i >= start; i -= 1) {
+        const entry = history[i];
+        const item = createElement('li', 'turn-log-item');
+        if (entry.takenBack) item.classList.add('turn-log-taken-back');
+        if (entry.type === 'coach') item.classList.add('turn-log-coach');
+        if (entry.type === 'takeback') item.classList.add('turn-log-takeback');
+        item.textContent = formatHistoryLine(entry, game);
+        list.appendChild(item);
       }
-
-      container.appendChild(lastEl);
+      logEl.appendChild(list);
+      if (start > 0) {
+        logEl.appendChild(
+          createElement('p', 'turn-log-more', `${start} earlier turn(s) not shown.`)
+        );
+      }
     }
+
+    container.appendChild(logEl);
   }
 
   /**
@@ -495,6 +548,26 @@
       }
       exchangeBtn.addEventListener('click', () => callbacks.onExchange && callbacks.onExchange());
       actions.appendChild(exchangeBtn);
+    }
+
+    if (state.canHint) {
+      const hintBtn = createElement('button', 'btn btn-secondary', 'Hint');
+      hintBtn.type = 'button';
+      hintBtn.dataset.focusId = 'hint';
+      hintBtn.disabled = locked || Boolean(state.coachBusy);
+      hintBtn.title = 'Place the best available play on the board';
+      hintBtn.addEventListener('click', () => callbacks.onHint && callbacks.onHint());
+      actions.appendChild(hintBtn);
+    }
+
+    if (state.canTakeBack) {
+      const takeBackBtn = createElement('button', 'btn', 'Take Back');
+      takeBackBtn.type = 'button';
+      takeBackBtn.dataset.focusId = 'take-back';
+      takeBackBtn.disabled = locked || Boolean(state.coachBusy);
+      takeBackBtn.setAttribute('aria-label', 'Take back the last turn');
+      takeBackBtn.addEventListener('click', () => callbacks.onTakeBack && callbacks.onTakeBack());
+      actions.appendChild(takeBackBtn);
     }
 
     container.appendChild(actions);
@@ -787,6 +860,26 @@
     humanNameField.appendChild(humanNameInput);
     computerFields.appendChild(humanNameField);
 
+    const coachField = createElement('fieldset', 'setup-fieldset');
+    coachField.appendChild(createElement('legend', null, 'Coach'));
+    const coachRow = createElement('div', 'setup-choice-row');
+    const coachWrap = createElement('label', 'setup-choice');
+    const coachCheck = createElement('input');
+    coachCheck.type = 'checkbox';
+    coachCheck.id = 'coach-mode';
+    coachCheck.name = 'coachMode';
+    coachWrap.appendChild(coachCheck);
+    coachWrap.appendChild(document.createTextNode('Coach mode'));
+    coachRow.appendChild(coachWrap);
+    coachField.appendChild(coachRow);
+    const coachHint = createElement(
+      'p',
+      'setup-computer-hint',
+      'Optional. Adds a Hint button and a best-available line after your turns. You cannot turn this on later.'
+    );
+    coachField.appendChild(coachHint);
+    computerFields.appendChild(coachField);
+
     const seatField = createElement('div', 'form-field');
     const seatLabel = createElement('label', null, 'Computer sits as');
     seatLabel.htmlFor = 'computer-seat';
@@ -841,6 +934,7 @@
           mode: 'computer',
           computerSeat: seat,
           difficulty,
+          coachMode: Boolean(coachCheck.checked),
         });
         return;
       }
@@ -992,8 +1086,32 @@
     });
     card.appendChild(list);
 
+    const bestPlay = bestPlayFromHistory(game);
+    if (bestPlay) {
+      const name = playerNameAt(game, bestPlay.playerIndex, bestPlay.playerName);
+      card.appendChild(
+        createElement(
+          'p',
+          'game-over-best',
+          `Best play: ${name} · ${(bestPlay.words || []).join(', ')} +${bestPlay.score}`
+        )
+      );
+    }
+
     const actions = createElement('div', 'game-over-actions');
-    const newGameBtn = createElement('button', 'btn btn-primary', 'New Game');
+    if (callbacks.onTakeBack) {
+      const takeBackBtn = createElement('button', 'btn', 'Take Back');
+      takeBackBtn.type = 'button';
+      takeBackBtn.addEventListener('click', () => callbacks.onTakeBack());
+      actions.appendChild(takeBackBtn);
+    }
+    if (callbacks.onRematch) {
+      const rematchBtn = createElement('button', 'btn btn-primary', 'Rematch');
+      rematchBtn.type = 'button';
+      rematchBtn.addEventListener('click', () => callbacks.onRematch());
+      actions.appendChild(rematchBtn);
+    }
+    const newGameBtn = createElement('button', callbacks.onRematch ? 'btn' : 'btn btn-primary', 'New Game');
     newGameBtn.type = 'button';
     newGameBtn.addEventListener('click', () => callbacks.onNewGame && callbacks.onNewGame());
     actions.appendChild(newGameBtn);
@@ -1081,6 +1199,25 @@
     let pendingThink = null;
     let inflightThink = null;
     let thinkStartedAt = 0;
+    let takeBackSnapshot = null;
+    let coachRequestId = 0;
+    let coachKind = null;
+    let coachThen = null;
+    let coachContext = null;
+    let coachBusy = false;
+    let pendingCoach = null;
+    let hintRestore = null;
+
+    function coachPayloadId(id) {
+      return `coach-${id}`;
+    }
+
+    function parseCoachRequestId(requestId) {
+      if (typeof requestId === 'string' && requestId.indexOf('coach-') === 0) {
+        return Number(requestId.slice(6));
+      }
+      return NaN;
+    }
 
     const AI = global.LetterloomAI;
 
@@ -1320,8 +1457,40 @@
 
     function isHumanLocked() {
       return Boolean(
-        computerThinking || (game && Engine.isComputerTurn(game))
+        computerThinking || coachBusy || (game && Engine.isComputerTurn(game))
       );
+    }
+
+    function isCoachEnabled() {
+      return Boolean(game && game.mode === 'computer' && game.coachMode);
+    }
+
+    function clearTakeBack() {
+      takeBackSnapshot = null;
+    }
+
+    function captureTakeBackPoint() {
+      const previous = takeBackSnapshot;
+      if (!game) {
+        takeBackSnapshot = null;
+        return previous;
+      }
+      const { dictionary, ...serializable } = game;
+      takeBackSnapshot = {
+        game: JSON.parse(JSON.stringify(serializable)),
+        actorIndex: game.currentPlayerIndex,
+      };
+      return previous;
+    }
+
+    function cancelCoach() {
+      coachRequestId += 1;
+      coachKind = null;
+      coachThen = null;
+      coachContext = null;
+      coachBusy = false;
+      pendingCoach = null;
+      hintRestore = null;
     }
 
     function humanPlayerIndex() {
@@ -1335,6 +1504,7 @@
       pendingThink = null;
       inflightThink = null;
       thinkStartedAt = 0;
+      cancelCoach();
       if (root) root.classList.remove('computer-thinking');
     }
 
@@ -1348,11 +1518,27 @@
       const msg = event.data || {};
       if (msg.type === 'ready') {
         aiWorkerReady = true;
-        if (pendingThink && pendingThink.requestId === thinkRequestId && computerThinking && aiWorker) {
+        if (pendingCoach && pendingCoach.requestId === coachPayloadId(coachRequestId) && aiWorker) {
+          const queued = pendingCoach;
+          pendingCoach = null;
+          aiWorker.postMessage(queued);
+        } else if (pendingThink && pendingThink.requestId === thinkRequestId && computerThinking && aiWorker) {
           const queued = pendingThink;
           pendingThink = null;
           inflightThink = queued;
           aiWorker.postMessage(queued);
+        }
+        return;
+      }
+      if (msg.purpose === 'coach' || parseCoachRequestId(msg.requestId) === coachRequestId) {
+        const id = parseCoachRequestId(msg.requestId);
+        if (id !== coachRequestId) return;
+        if (msg.type === 'error') {
+          finishCoachRequest(null, msg.error || 'Hint search failed.');
+          return;
+        }
+        if (msg.type === 'result') {
+          finishCoachRequest(msg.result);
         }
         return;
       }
@@ -1383,13 +1569,19 @@
             }
           }
           aiWorker = null;
-          if (computerThinking && inflightThink && inflightThink.requestId === thinkRequestId) {
+          if (coachBusy && pendingCoach && pendingCoach.requestId === coachPayloadId(coachRequestId)) {
+            const queued = pendingCoach;
+            pendingCoach = null;
+            runCoachLocal(queued.requestId, queued.snapshot, queued.purpose);
+          } else if (computerThinking && inflightThink && inflightThink.requestId === thinkRequestId) {
             const queued = inflightThink;
             pendingThink = null;
             inflightThink = null;
             runComputerTurnLocal(queued.requestId, queued.snapshot, queued.difficulty, queued.seed);
           } else if (computerThinking) {
             finishComputerTurn(null, 'Computer worker failed.');
+          } else if (coachBusy) {
+            finishCoachRequest(null, 'Computer worker failed.');
           }
         });
         if (options.dictionary) {
@@ -1538,6 +1730,7 @@
       const payload = {
         type: 'think',
         requestId,
+        purpose: 'think',
         snapshot,
         difficulty,
         seed,
@@ -1568,6 +1761,258 @@
       }
 
       runComputerTurnLocal(requestId, snapshot, difficulty, seed);
+    }
+
+    function describeExchangeTiles(tileIds, rack) {
+      const tiles = (tileIds || []).map((id) => (rack || []).find((tile) => tile.id === id)).filter(Boolean);
+      if (tiles.length === 0) return `${(tileIds || []).length} tile(s)`;
+      return tiles.map((tile) => (tile.isBlank ? '?' : tile.letter)).join(', ');
+    }
+
+    function applyHintAction(action) {
+      if (!game || !action) {
+        showMessage('No hint available.', true);
+        return;
+      }
+
+      if (action.type === 'play') {
+        pendingPlacements = (action.placements || []).map((placement) => {
+          const next = { row: placement.row, col: placement.col, tileId: placement.tileId };
+          if (placement.letter) next.letter = placement.letter;
+          return next;
+        });
+        selectedTileId = null;
+        exchangeMode = false;
+        exchangeTileIds = [];
+        showMessage(
+          `Hint: ${(action.words || []).join(', ')} for ${action.score} points. Play Word or Clear.`
+        );
+        return;
+      }
+
+      if (action.type === 'exchange') {
+        const human = game.players[humanPlayerIndex()];
+        const letters = describeExchangeTiles(action.tileIds, human && human.rack);
+        if (game.bag.length >= Engine.MIN_BAG_FOR_EXCHANGE) {
+          pendingPlacements = [];
+          selectedTileId = null;
+          exchangeMode = true;
+          exchangeTileIds = (action.tileIds || []).slice();
+          showMessage(`No legal play — exchange ${letters}, then confirm.`);
+        } else {
+          showMessage(`No legal play — exchange ${letters}.`);
+        }
+        return;
+      }
+
+      showMessage('No legal play or exchange.');
+    }
+
+    function recordCoachFromAction(action, context) {
+      if (!game || !action || !context) return;
+      if (action.type === 'exchange') {
+        Engine.recordCoachNote(game, {
+          turnNumber: context.turnNumber,
+          playerIndex: context.playerIndex,
+          action: 'exchange',
+          exchangeLetters: describeExchangeTiles(
+            action.tileIds,
+            context.rack || []
+          ),
+        });
+        return;
+      }
+      if (action.type === 'pass') {
+        Engine.recordCoachNote(game, {
+          turnNumber: context.turnNumber,
+          playerIndex: context.playerIndex,
+          action: 'pass',
+        });
+        return;
+      }
+      Engine.recordCoachNote(game, {
+        turnNumber: context.turnNumber,
+        playerIndex: context.playerIndex,
+        action: 'play',
+        words: action.words || [],
+        score: action.score,
+      });
+    }
+
+    function finishCoachRequest(action, failureMessage) {
+      const kind = coachKind;
+      const then = coachThen;
+      const context = coachContext;
+      coachKind = null;
+      coachThen = null;
+      coachContext = null;
+      coachBusy = false;
+      pendingCoach = null;
+
+      if (kind === 'hint') {
+        if (failureMessage) {
+          restoreHintStaging();
+          showMessage(failureMessage, true);
+        } else {
+          hintRestore = null;
+          applyHintAction(action);
+        }
+        refresh();
+        return;
+      }
+
+      if (kind === 'review' && action && !failureMessage) {
+        recordCoachFromAction(action, context);
+      }
+
+      if (then === 'gameover') {
+        showGameOver();
+        refresh();
+        return;
+      }
+
+      refresh();
+      maybeStartComputerTurn();
+    }
+
+    function runCoachLocal(requestId, snapshot, kind) {
+      const numericId = typeof requestId === 'string' ? parseCoachRequestId(requestId) : requestId;
+      global.setTimeout(() => {
+        if (numericId !== coachRequestId) return;
+        try {
+          const index = ensureLocalIndex();
+          if (!index || !AI) {
+            finishCoachRequest(null, 'Coach is unavailable.');
+            return;
+          }
+          const result = AI.decideTurn(snapshot, {
+            difficulty: 'hard',
+            seed: 1,
+            index,
+            engine: Engine,
+          });
+          if (numericId !== coachRequestId) return;
+          finishCoachRequest(result);
+        } catch (err) {
+          if (numericId !== coachRequestId) return;
+          finishCoachRequest(null, err.message || 'Hint search failed.');
+        }
+      }, 0);
+    }
+
+    function sendCoachRequest(kind, snapshot, extras = {}) {
+      coachKind = kind;
+      coachThen = extras.then || null;
+      coachContext = extras.context || null;
+
+      if (!game || !AI) {
+        finishCoachRequest(null, 'Coach is unavailable.');
+        return;
+      }
+
+      const requestId = (coachRequestId += 1);
+      coachBusy = true;
+
+      const payload = {
+        type: 'think',
+        requestId: coachPayloadId(requestId),
+        purpose: 'coach',
+        snapshot,
+        difficulty: 'hard',
+        seed: 1,
+      };
+      pendingCoach = payload;
+
+      if (kind === 'hint') {
+        showMessage('Looking for a play…');
+        refresh();
+      } else {
+        showMessage('Checking the best available play…');
+        refresh();
+      }
+
+      const worker = ensureAiWorker();
+      if (worker) {
+        if (aiWorkerReady) {
+          try {
+            pendingCoach = null;
+            worker.postMessage(payload);
+            return;
+          } catch (err) {
+            console.warn('Coach worker postMessage failed:', err);
+          }
+        } else {
+          global.setTimeout(() => {
+            if (requestId !== coachRequestId) return;
+            if (!aiWorkerReady) {
+              pendingCoach = null;
+              runCoachLocal(requestId, snapshot, kind);
+            }
+          }, 2500);
+          return;
+        }
+      }
+
+      pendingCoach = null;
+      runCoachLocal(requestId, snapshot, kind);
+    }
+
+    function clonePublicSnapshot(seat) {
+      if (!game) return null;
+      const raw = AI
+        ? AI.publicSnapshot(game, seat)
+        : {
+            board: game.board,
+            rack: game.players[seat].rack,
+            bagCount: game.bag.length,
+            isFirstMove: Boolean(game.isFirstMove),
+            status: game.status,
+            turnNumber: game.turnNumber,
+          };
+      return JSON.parse(JSON.stringify(raw));
+    }
+
+    function beginCoachReview() {
+      if (!isCoachEnabled() || !AI) return null;
+      const seat = game.currentPlayerIndex;
+      const snapshot = clonePublicSnapshot(seat);
+      return {
+        snapshot,
+        context: {
+          turnNumber: game.turnNumber,
+          playerIndex: seat,
+          rack: snapshot.rack,
+        },
+      };
+    }
+
+    function afterHumanCommit(result, review) {
+      resetTurnState();
+
+      if (result && result.endResult && result.endResult.ended) {
+        if (review) {
+          sendCoachRequest('review', review.snapshot, {
+            then: 'gameover',
+            context: review.context,
+          });
+          return;
+        }
+        showGameOver();
+        refresh();
+        return;
+      }
+
+      refresh();
+
+      if (review) {
+        sendCoachRequest('review', review.snapshot, {
+          then: 'computer',
+          context: review.context,
+        });
+        return;
+      }
+
+      maybeStartComputerTurn();
     }
 
     async function handleBoardClick(row, col) {
@@ -1649,8 +2094,11 @@
         return;
       }
 
+      const previousTakeBack = captureTakeBackPoint();
+      const review = beginCoachReview();
       const result = Engine.applyMove(game, pendingPlacements, resolved.direction);
       if (!result.ok) {
+        takeBackSnapshot = previousTakeBack;
         showMessage(result.error, true);
         refresh();
         return;
@@ -1659,14 +2107,7 @@
       showMessage(
         `Played for ${result.score.total} points: ${result.words.map((w) => w.word).join(', ')}`
       );
-      resetTurnState();
-
-      if (result.endResult && result.endResult.ended) {
-        showGameOver();
-      }
-
-      refresh();
-      maybeStartComputerTurn();
+      afterHumanCommit(result, review);
     }
 
     function handleClear() {
@@ -1684,21 +2125,17 @@
         return;
       }
 
+      const previousTakeBack = captureTakeBackPoint();
+      const review = beginCoachReview();
       const result = Engine.passTurn(game);
       if (!result.ok) {
+        takeBackSnapshot = previousTakeBack;
         showMessage(result.error, true);
         return;
       }
 
-      resetTurnState();
       showMessage('Turn passed.');
-
-      if (result.endResult && result.endResult.ended) {
-        showGameOver();
-      }
-
-      refresh();
-      maybeStartComputerTurn();
+      afterHumanCommit(result, review);
     }
 
     function handleExchangeStart() {
@@ -1724,16 +2161,17 @@
         return;
       }
 
+      const previousTakeBack = captureTakeBackPoint();
+      const review = beginCoachReview();
       const result = Engine.exchangeTiles(game, exchangeTileIds);
       if (!result.ok) {
+        takeBackSnapshot = previousTakeBack;
         showMessage(result.error, true);
         return;
       }
 
-      resetTurnState();
       showMessage(`Exchanged ${result.exchanged} tile(s).`);
-      refresh();
-      maybeStartComputerTurn();
+      afterHumanCommit(result, review);
     }
 
     function handleCancelExchange() {
@@ -1741,6 +2179,95 @@
       exchangeTileIds = [];
       showMessage('');
       refresh();
+    }
+
+    function restoreHintStaging() {
+      if (!hintRestore) return;
+      pendingPlacements = hintRestore.pendingPlacements;
+      selectedTileId = hintRestore.selectedTileId;
+      exchangeMode = hintRestore.exchangeMode;
+      exchangeTileIds = hintRestore.exchangeTileIds;
+      hintRestore = null;
+    }
+
+    function handleHint() {
+      if (!game || !isCoachEnabled() || isHumanLocked() || exchangeMode || game.status !== 'playing') {
+        return;
+      }
+      hintRestore = {
+        pendingPlacements: pendingPlacements.slice(),
+        selectedTileId,
+        exchangeMode,
+        exchangeTileIds: exchangeTileIds.slice(),
+      };
+      pendingPlacements = [];
+      selectedTileId = null;
+      const snapshot = clonePublicSnapshot(humanPlayerIndex());
+      if (!snapshot) {
+        restoreHintStaging();
+        showMessage('Hint is unavailable.', true);
+        refresh();
+        return;
+      }
+      sendCoachRequest('hint', snapshot);
+    }
+
+    async function handleTakeBack() {
+      if (!game || !takeBackSnapshot) return;
+      if (game.status === 'playing' && isHumanLocked()) return;
+      if (game.status !== 'playing' && game.status !== 'ended') return;
+
+      const confirmed = await openModal({
+        mode: 'confirm',
+        title: 'Take back',
+        message:
+          game.mode === 'computer'
+            ? 'Undo your last turn and the computer’s reply? The bag is reshuffled.'
+            : 'Undo the last turn? The bag is reshuffled.',
+        confirmLabel: 'Take Back',
+        cancelLabel: 'Cancel',
+      });
+      if (!confirmed || !takeBackSnapshot || !game) return;
+
+      cancelComputerTurn();
+      const undone = (game.history || []).slice(
+        (takeBackSnapshot.game.history || []).length
+      );
+      const actorIndex = takeBackSnapshot.actorIndex;
+      game = JSON.parse(JSON.stringify(takeBackSnapshot.game));
+      Engine.normalizeGameMeta(game);
+      game.dictionary = options.dictionary || null;
+      Engine.shuffleInPlace(game.bag);
+      Engine.recordTakeBack(game, undone, actorIndex);
+      clearTakeBack();
+      resetTurnState();
+      overlayEl.classList.add('hidden');
+      overlayEl.removeAttribute('role');
+      overlayEl.removeAttribute('aria-modal');
+      overlayEl.removeAttribute('aria-labelledby');
+      gameEl.inert = false;
+      showMessage('Last turn taken back. The bag was reshuffled.');
+      persistState();
+      refresh();
+    }
+
+    function handleRematch() {
+      if (!game) return;
+      const names = game.players.map((player) => player.name);
+      const setup = {
+        mode: game.mode,
+        computerSeat: game.computerSeat,
+        difficulty: game.computerDifficulty,
+        coachMode: Boolean(game.coachMode),
+      };
+      if (Number.isInteger(game.openingPlayerIndex)) {
+        setup.firstPlayerIndex = (game.openingPlayerIndex + 1) % names.length;
+      }
+      overlayEl.classList.add('hidden');
+      overlayEl.removeAttribute('role');
+      overlayEl.removeAttribute('aria-modal');
+      gameEl.inert = false;
+      startGame(names, setup);
     }
 
     function getUiState() {
@@ -1771,6 +2298,7 @@
       }
 
       cancelComputerTurn();
+      clearTakeBack();
       game = snapshot.game;
       Engine.normalizeGameMeta(game);
       game.dictionary = options.dictionary || null;
@@ -1899,6 +2427,7 @@
       }
 
       cancelComputerTurn();
+      clearTakeBack();
       game = null;
       activeSaveId = null;
       activeSaveName = null;
@@ -1927,6 +2456,8 @@
       persistState();
       renderGameOver(overlayEl, game, {
         onNewGame: handleNewGame,
+        onRematch: handleRematch,
+        onTakeBack: takeBackSnapshot ? handleTakeBack : null,
       });
       overlayEl.classList.remove('hidden');
       overlayEl.setAttribute('role', 'dialog');
@@ -1945,14 +2476,20 @@
       rememberFocus();
 
       const locked = isHumanLocked();
-      const thinking = computerThinking || locked;
+      const reviewing = Boolean(coachBusy && coachKind === 'review');
+      const hinting = Boolean(coachBusy && coachKind === 'hint');
+      const thinking = computerThinking || (Engine.isComputerTurn(game) && !reviewing && !hinting);
       const rackPlayer = game.mode === 'computer' ? humanPlayerIndex() : game.currentPlayerIndex;
-      gameEl.setAttribute('aria-busy', thinking ? 'true' : 'false');
-      root.classList.toggle('computer-thinking', thinking);
-      thinkBanner.classList.toggle('hidden', !thinking);
-      thinkBanner.textContent = thinking
-        ? `${game.players[game.currentPlayerIndex].name} is thinking…`
-        : '';
+      gameEl.setAttribute('aria-busy', locked ? 'true' : 'false');
+      root.classList.toggle('computer-thinking', locked);
+      thinkBanner.classList.toggle('hidden', !locked);
+      thinkBanner.textContent = reviewing
+        ? 'Checking the best available play…'
+        : hinting
+          ? 'Looking for a play…'
+          : thinking
+            ? `${game.players[game.currentPlayerIndex].name} is thinking…`
+            : '';
 
       const resolved = resolvePlacementDirection(game, pendingPlacements);
       const direction = resolved.direction;
@@ -1987,6 +2524,14 @@
           ? resolved.validation || Engine.validatePlacement(game, pendingPlacements, direction)
           : { ok: false };
 
+      renderScorePreview(
+        previewContainer,
+        game,
+        pendingPlacements,
+        direction,
+        validation.ok ? validation : null
+      );
+
       renderControls(
         controlsContainer,
         {
@@ -1997,15 +2542,27 @@
           onExchange: handleExchangeStart,
           onConfirmExchange: handleConfirmExchange,
           onCancelExchange: handleCancelExchange,
+          onHint: handleHint,
+          onTakeBack: handleTakeBack,
         },
         {
           exchangeMode,
           canPlay: validation.ok === true && !locked,
           canExchange: game.bag.length >= Engine.MIN_BAG_FOR_EXCHANGE && !exchangeMode && !locked,
+          canHint: isCoachEnabled() && game.status === 'playing' && !exchangeMode,
+          canTakeBack:
+            Boolean(takeBackSnapshot) &&
+            (game.status === 'playing' || game.status === 'ended') &&
+            !exchangeMode,
+          coachBusy,
           bagCount: game.bag.length,
           locked,
           message: thinking
             ? `${game.players[game.currentPlayerIndex].name} is thinking…`
+            : coachBusy && coachKind === 'review'
+              ? 'Checking the best available play…'
+              : coachBusy && coachKind === 'hint'
+                ? 'Looking for a play…'
             : exchangeMode
               ? 'Exchange mode — select tiles from your rack.'
               : '',
@@ -2053,11 +2610,15 @@
     function startGame(playerNames, setupOptions = {}) {
       const dictionary = options.dictionary || null;
       cancelComputerTurn();
+      clearTakeBack();
       game = Engine.createGame(playerNames, {
         dictionary,
         mode: setupOptions.mode,
         computerSeat: setupOptions.computerSeat,
         computerDifficulty: setupOptions.difficulty,
+        computerSeed: setupOptions.computerSeed,
+        coachMode: setupOptions.coachMode,
+        firstPlayerIndex: setupOptions.firstPlayerIndex,
       });
       activeSaveId = null;
       activeSaveName = null;

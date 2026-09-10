@@ -454,9 +454,31 @@
   function chooseExchange(rack, bagCount, engine) {
     const minBag = engine && engine.MIN_BAG_FOR_EXCHANGE != null ? engine.MIN_BAG_FOR_EXCHANGE : 7;
     if (!rack || rack.length === 0 || bagCount < minBag) return null;
+
+    const n = rack.length;
+    let bestIds = null;
+    let bestLeave = -Infinity;
+    let bestCount = Infinity;
+
+    for (let mask = 1; mask < 1 << n; mask += 1) {
+      const tileIds = [];
+      const keep = [];
+      for (let i = 0; i < n; i += 1) {
+        if (mask & (1 << i)) tileIds.push(rack[i].id);
+        else keep.push(rack[i]);
+      }
+      const leave = evaluateLeave(keep);
+      if (leave > bestLeave || (leave === bestLeave && tileIds.length < bestCount)) {
+        bestLeave = leave;
+        bestCount = tileIds.length;
+        bestIds = tileIds;
+      }
+    }
+
     return {
       type: 'exchange',
-      tileIds: rack.map((tile) => tile.id),
+      tileIds: bestIds || rack.map((tile) => tile.id),
+      leave: bestLeave,
     };
   }
 
@@ -549,6 +571,7 @@
     evaluateLeave,
     generateMoves,
     choosePlay,
+    chooseExchange,
     decideTurn,
     publicSnapshot,
     explainAction,

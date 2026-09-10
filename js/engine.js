@@ -175,6 +175,65 @@
     return game.players[game.currentPlayerIndex];
   }
 
+  function snapshotRack(player) {
+    return (player && player.rack ? player.rack : []).map((tile) => ({
+      letter: tile.letter,
+      points: tile.points,
+      isBlank: Boolean(tile.isBlank),
+    }));
+  }
+
+  function ensureHistory(game) {
+    if (!game) return [];
+    if (!Array.isArray(game.history)) game.history = [];
+    return game.history;
+  }
+
+  function formatHistoryLetters(tiles) {
+    return (tiles || []).map((tile) => (tile.isBlank ? '?' : tile.letter || '?')).join(', ');
+  }
+
+  function recordTakeBack(game, undoneEntries, playerIndex) {
+    if (!game) return null;
+    const history = ensureHistory(game);
+    const marked = (undoneEntries || []).map((entry) => Object.assign({}, entry, { takenBack: true }));
+    history.push(...marked);
+    const seat =
+      Number.isInteger(playerIndex) && playerIndex >= 0 && playerIndex < game.players.length
+        ? playerIndex
+        : game.currentPlayerIndex;
+    const entry = {
+      type: 'takeback',
+      turnNumber: game.turnNumber,
+      playerIndex: seat,
+      playerName: game.players[seat] ? game.players[seat].name : '',
+      undoneCount: marked.length,
+    };
+    history.push(entry);
+    game.lastMove = {
+      playerIndex: seat,
+      takeback: true,
+      undoneCount: marked.length,
+    };
+    return entry;
+  }
+
+  function recordCoachNote(game, note) {
+    if (!game || !note) return null;
+    const history = ensureHistory(game);
+    const entry = {
+      type: 'coach',
+      turnNumber: note.turnNumber != null ? note.turnNumber : game.turnNumber,
+      playerIndex: note.playerIndex != null ? note.playerIndex : game.currentPlayerIndex,
+      action: note.action || 'play',
+      words: note.words || [],
+      score: note.score != null ? note.score : null,
+      exchangeLetters: note.exchangeLetters || '',
+    };
+    history.push(entry);
+    return entry;
+  }
+
   function findRackTile(player, tileId) {
     return player.rack.find((tile) => tile.id === tileId) || null;
   }
@@ -593,6 +652,7 @@
     if (!validation.ok) return validation;
 
     const player = getPlayer(game);
+    const rackBefore = snapshotRack(player);
     const tileIds = validation.placements.map((p) => p.tileId);
 
     const hypothetical = buildHypotheticalBoard(game, validation.placements);
@@ -629,6 +689,19 @@
       breakdown: score.breakdown,
     };
 
+    ensureHistory(game).push({
+      type: 'play',
+      turnNumber: game.turnNumber,
+      playerIndex: game.currentPlayerIndex,
+      playerName: player.name,
+      rackBefore,
+      words: validation.words.map((w) => w.word),
+      score: score.total,
+      breakdown: score.breakdown,
+      scoreAfter: player.score,
+      tilesPlayed: validation.placements.length,
+    });
+
     const ended = checkGameEnd(game, { rackEmptied: player.rack.length === 0 });
     if (!ended.ended) {
       game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
@@ -662,6 +735,7 @@
     }
 
     const player = getPlayer(game);
+    const rackBefore = snapshotRack(player);
     const uniqueIds = [...new Set(tileIds)];
 
     if (uniqueIds.length !== tileIds.length) {
@@ -688,6 +762,16 @@
       exchange: uniqueIds.length,
     };
 
+    ensureHistory(game).push({
+      type: 'exchange',
+      turnNumber: game.turnNumber,
+      playerIndex: game.currentPlayerIndex,
+      playerName: player.name,
+      rackBefore,
+      exchange: uniqueIds.length,
+      exchangeLetters: formatHistoryLetters(tilesToExchange),
+    });
+
     game.currentPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
     game.turnNumber += 1;
 
@@ -699,11 +783,22 @@
       return { ok: false, error: 'Game is not active.' };
     }
 
+    const player = getPlayer(game);
+    const rackBefore = snapshotRack(player);
+
     game.consecutivePasses += 1;
     game.lastMove = {
       playerIndex: game.currentPlayerIndex,
       pass: true,
     };
+
+    ensureHistory(game).push({
+      type: 'pass',
+      turnNumber: game.turnNumber,
+      playerIndex: game.currentPlayerIndex,
+      playerName: player ? player.name : '',
+      rackBefore,
+    });
 
     const ended = checkGameEnd(game);
     if (!ended.ended) {
@@ -784,15 +879,21 @@
 
   function normalizeGameMeta(game) {
     if (!game) return game;
+    if (!Array.isArray(game.history)) game.history = [];
+    if (game.openingPlayerIndex != null && !Number.isInteger(game.openingPlayerIndex)) {
+      game.openingPlayerIndex = null;
+    }
     if (game.mode === 'computer') {
       game.computerSeat = normalizeComputerSeat(game.computerSeat, game.players.length);
       game.computerDifficulty = normalizeDifficulty(game.computerDifficulty);
       if (game.computerSeed == null) game.computerSeed = Date.now();
+      game.coachMode = Boolean(game.coachMode);
     } else {
       game.mode = 'human';
       if (game.computerSeat === undefined) game.computerSeat = null;
       if (game.computerDifficulty === undefined) game.computerDifficulty = null;
       if (game.computerSeed === undefined) game.computerSeed = null;
+      game.coachMode = false;
     }
     return game;
   }
@@ -823,7 +924,11 @@
       player.rack = drawTilesFromBag(bag, RACK_SIZE);
     }
 
-    const firstPlayerIndex = determineFirstPlayer(players, bag);
+    const requestedFirst = Number(options.firstPlayerIndex);
+    const firstPlayerIndex =
+      Number.isInteger(requestedFirst) && requestedFirst >= 0 && requestedFirst < players.length
+        ? requestedFirst
+        : determineFirstPlayer(players, bag);
 
     for (const player of players) {
       refillRack(player, bag);
@@ -834,6 +939,7 @@
       players,
       bag,
       currentPlayerIndex: firstPlayerIndex,
+      openingPlayerIndex: firstPlayerIndex,
       turnNumber: 1,
       status: 'playing',
       endReason: null,
@@ -842,16 +948,19 @@
       isFirstMove: true,
       dictionary: options.dictionary || null,
       lastMove: null,
+      history: [],
       mode: options.mode === 'computer' ? 'computer' : 'human',
       computerSeat: null,
       computerDifficulty: null,
       computerSeed: null,
+      coachMode: false,
     };
 
     if (game.mode === 'computer') {
       game.computerSeat = normalizeComputerSeat(options.computerSeat, players.length);
       game.computerDifficulty = normalizeDifficulty(options.computerDifficulty);
       game.computerSeed = options.computerSeed != null ? Number(options.computerSeed) : Date.now();
+      game.coachMode = Boolean(options.coachMode);
     }
 
     return game;
@@ -880,6 +989,9 @@
     normalizeComputerSeat,
     normalizeGameMeta,
     isComputerTurn,
+    snapshotRack,
+    recordTakeBack,
+    recordCoachNote,
 
     // Useful helpers for UI / tests
     getPremiumAt,
