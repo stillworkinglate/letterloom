@@ -523,7 +523,7 @@
 
     const current = game.players[game.currentPlayerIndex];
     const turnEl = createElement('div', 'status-turn');
-    turnEl.appendChild(createElement('h2', 'status-heading', 'Current Turn'));
+    turnEl.appendChild(createElement('h2', 'status-heading', 'Current turn'));
     turnEl.appendChild(createElement('p', 'status-current-player', current.name));
 
     if (options.thinking) {
@@ -571,7 +571,7 @@
     container.appendChild(scoresEl);
 
     const bagEl = createElement('div', 'status-bag');
-    bagEl.appendChild(createElement('h3', 'status-subheading', 'Tile Bag'));
+    bagEl.appendChild(createElement('h3', 'status-subheading', 'Tile bag'));
     bagEl.appendChild(
       createElement('p', 'bag-count', `${Engine.getRemainingBagCount(game)} tiles remaining`)
     );
@@ -579,7 +579,7 @@
 
     const history = Array.isArray(game.history) ? game.history : [];
     const logEl = createElement('div', 'status-turn-log');
-    logEl.appendChild(createElement('h3', 'status-subheading', 'Turn Log'));
+    logEl.appendChild(createElement('h3', 'status-subheading', 'Turn log'));
 
     if (history.length === 0) {
       logEl.appendChild(createElement('p', 'turn-log-empty', 'No moves yet.'));
@@ -804,7 +804,7 @@
       validation.placements
     );
 
-    container.appendChild(createElement('h3', 'preview-heading', 'Score Preview'));
+    container.appendChild(createElement('h3', 'preview-heading', 'Score preview'));
     container.appendChild(
       createElement('p', 'preview-total', `+${score.total} points`)
     );
@@ -1164,7 +1164,7 @@
     actions.appendChild(exportBtn);
 
     if (callbacks.onHelp) {
-      const helpBtn = createElement('button', 'btn', 'How to Play');
+      const helpBtn = createElement('button', 'btn', 'How to play');
       helpBtn.type = 'button';
       helpBtn.dataset.focusId = 'help';
       helpBtn.addEventListener('click', () => callbacks.onHelp());
