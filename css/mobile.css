@@ -166,13 +166,9 @@
     gap: 0.45rem;
   }
 
-  /* Setup / headings — slightly tighter */
-  .setup-card {
-    padding: 2rem 1.75rem;
-  }
-
-  .setup-title {
-    font-size: 2.1rem;
+  /* Setup — slightly tighter type on stacked layouts */
+  .setup-tagline {
+    font-size: 1.05rem;
   }
 
   .status-heading {
@@ -299,26 +295,28 @@
     padding-block: 0.5rem;
   }
 
-  .setup-card {
-    padding: 1.25rem 1rem;
-    border-radius: 10px;
-  }
-
-  .setup-title {
-    font-size: 1.85rem;
+  .setup-main {
+    padding: 1.4rem 1.1rem;
   }
 
   .setup-tagline {
     margin-bottom: 1rem;
-    font-size: 0.9rem;
-  }
-
-  .setup-subtitle {
-    margin-bottom: 1.25rem;
+    font-size: 1rem;
   }
 
   .setup-form {
     gap: 1rem;
+  }
+
+  .setup-wordmark {
+    gap: 3px;
+    padding: 6px 7px 5px;
+  }
+
+  .setup-wordmark-tile {
+    width: 26px;
+    height: 30px;
+    font-size: 15px;
   }
 
   /* Save list: actions under text on narrow screens */
@@ -326,7 +324,7 @@
     flex-direction: column;
     align-items: stretch;
     gap: 0.6rem;
-    padding: 0.65rem 0.75rem;
+    padding: 0.65rem 0;
   }
 
   .setup-save-actions {
@@ -403,12 +401,18 @@
     );
   }
 
-  .setup-title {
-    font-size: 1.6rem;
+  .setup-main {
+    padding: 1.15rem 0.9rem;
   }
 
-  .setup-card {
-    padding: 1rem 0.75rem;
+  .setup-wordmark-tile {
+    width: 24px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .setup-wordmark-tile i {
+    font-size: 7px;
   }
 
   .rack-slots {
