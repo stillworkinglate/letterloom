@@ -7,8 +7,11 @@
   const INDEX_KEY = 'scrabble-saves-index-v2';
   const GAME_KEY_PREFIX = 'scrabble-game-';
   const LEGACY_KEY = 'scrabble-save-v1';
+  const STATS_KEY = 'letterloom-stats-v1';
   const SAVE_VERSION = 1;
   const INDEX_VERSION = 2;
+  const STATS_VERSION = 1;
+  const MAX_ARCHIVED_GAMES = 200;
 
   function isObject(value) {
     return value !== null && typeof value === 'object';
@@ -290,6 +293,156 @@
     });
   }
 
+  function readStatsStore() {
+    try {
+      const raw = localStorage.getItem(STATS_KEY);
+      if (!raw) return { version: STATS_VERSION, games: [] };
+      const store = JSON.parse(raw);
+      if (!isObject(store) || !Array.isArray(store.games)) {
+        return { version: STATS_VERSION, games: [] };
+      }
+      return store;
+    } catch (err) {
+      console.warn('Failed to read local stats:', err);
+      return { version: STATS_VERSION, games: [] };
+    }
+  }
+
+  function writeStatsStore(store) {
+    localStorage.setItem(STATS_KEY, JSON.stringify(store));
+  }
+
+  function buildFinishedSummary(game, extra = {}) {
+    if (!game) return null;
+    const Engine = global.LetterloomEngine;
+    if (!Engine || !Engine.summarizeHistory) return null;
+
+    const stats = Engine.summarizeHistory(game);
+    const fingerprint = Engine.historyFingerprint(game);
+    const best = stats.bestPlay;
+
+    return {
+      fingerprint,
+      endedAt: extra.endedAt || new Date().toISOString(),
+      saveId: extra.saveId || null,
+      mode: stats.mode,
+      computerSeat: stats.computerSeat,
+      computerDifficulty: stats.computerDifficulty,
+      names: (game.players || []).map((player) => player.name),
+      scores: (game.players || []).map((player) => player.score),
+      winnerIndex: stats.winnerIndex,
+      winnerName: stats.winnerName,
+      isTie: stats.isTie,
+      endReason: stats.endReason,
+      plays: stats.plays,
+      bingos: stats.bingos,
+      exchanges: stats.exchanges,
+      passes: stats.passes,
+      bestPlay: best
+        ? {
+            playerIndex: best.playerIndex,
+            playerName: best.playerName || (game.players[best.playerIndex] && game.players[best.playerIndex].name) || '',
+            words: best.words || [],
+            score: best.score || 0,
+          }
+        : null,
+    };
+  }
+
+  function recordFinishedGame(game, extra = {}) {
+    if (!game || game.status !== 'ended') {
+      return { ok: false, error: 'Game is not finished.' };
+    }
+
+    const summary = buildFinishedSummary(game, extra);
+    if (!summary) return { ok: false, error: 'Could not summarize game.' };
+
+    const store = readStatsStore();
+    if (store.games.some((entry) => entry.fingerprint === summary.fingerprint)) {
+      return { ok: true, duplicate: true, summary };
+    }
+
+    store.version = STATS_VERSION;
+    store.games.unshift(summary);
+    store.games = store.games.slice(0, MAX_ARCHIVED_GAMES);
+
+    try {
+      writeStatsStore(store);
+      return { ok: true, summary };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Could not record stats.' };
+    }
+  }
+
+  function collectFinishedSummaries() {
+    const byFingerprint = new Map();
+
+    for (const save of listSaves()) {
+      if (save.gameStatus !== 'ended') continue;
+      const snapshot = getSave(save.id);
+      if (!snapshot || !snapshot.game) continue;
+      const summary = buildFinishedSummary(snapshot.game, {
+        endedAt: snapshot.savedAt,
+        saveId: snapshot.id,
+      });
+      if (summary && !byFingerprint.has(summary.fingerprint)) {
+        byFingerprint.set(summary.fingerprint, summary);
+      }
+    }
+
+    for (const archived of readStatsStore().games) {
+      if (archived && archived.fingerprint && !byFingerprint.has(archived.fingerprint)) {
+        byFingerprint.set(archived.fingerprint, archived);
+      }
+    }
+
+    return Array.from(byFingerprint.values()).sort(
+      (a, b) => new Date(b.endedAt) - new Date(a.endedAt)
+    );
+  }
+
+  function getLocalStats() {
+    const games = collectFinishedSummaries();
+    const vsComputer = { wins: 0, losses: 0, ties: 0 };
+    let humanGames = 0;
+    let computerGames = 0;
+    let bingos = 0;
+    let plays = 0;
+    let bestPlay = null;
+
+    for (const game of games) {
+      bingos += game.bingos || 0;
+      plays += game.plays || 0;
+      if (game.bestPlay && (!bestPlay || game.bestPlay.score > bestPlay.score)) {
+        bestPlay = game.bestPlay;
+      }
+
+      if (game.mode === 'computer') {
+        computerGames += 1;
+        if (game.isTie) {
+          vsComputer.ties += 1;
+        } else if (Number.isInteger(game.winnerIndex) && game.winnerIndex !== game.computerSeat) {
+          vsComputer.wins += 1;
+        } else if (Number.isInteger(game.winnerIndex) && game.winnerIndex === game.computerSeat) {
+          vsComputer.losses += 1;
+        }
+      } else {
+        humanGames += 1;
+      }
+    }
+
+    return {
+      games,
+      finished: games.length,
+      humanGames,
+      computerGames,
+      vsComputer,
+      bingos,
+      plays,
+      bestPlay,
+    };
+  }
+
   function importSave(snapshot, name) {
     if (snapshot && snapshot.game && global.LetterloomEngine && global.LetterloomEngine.normalizeGameMeta) {
       global.LetterloomEngine.normalizeGameMeta(snapshot.game);
@@ -313,7 +466,9 @@
   const LetterloomStorage = {
     INDEX_KEY,
     GAME_KEY_PREFIX,
+    STATS_KEY,
     SAVE_VERSION,
+    STATS_VERSION,
     generateId,
     createSnapshot,
     validateSnapshot,
@@ -327,6 +482,10 @@
     readSnapshotFile,
     importSave,
     migrateLegacySave,
+    buildFinishedSummary,
+    recordFinishedGame,
+    collectFinishedSummaries,
+    getLocalStats,
   };
 
   global.LetterloomStorage = LetterloomStorage;

@@ -25,6 +25,8 @@
     'You can play another person on the same screen, or play the computer on Easy, Medium, or Hard. The computer uses the same dictionary and rules.',
     'Take back undoes the turn you just made. Against the computer it also undoes the reply, and the bag is reshuffled.',
     'Coach mode (vs the computer, chosen at the start) adds Hint and a best-available note after your turns.',
+    'Tap the tiles-remaining count to see unseen letters — the leftover A–Z grid. After the game ends it shows every tile still off the board.',
+    'Replay and local stats read the turn history already stored in this browser. No extra recording.',
   ];
 
   function playerNameAt(game, index, fallbackName) {
@@ -72,12 +74,199 @@
   }
 
   function bestPlayFromHistory(game) {
+    if (Engine && Engine.summarizeHistory) {
+      return Engine.summarizeHistory(game).bestPlay;
+    }
     let best = null;
     for (const entry of game && game.history ? game.history : []) {
       if (entry.type !== 'play' || entry.takenBack) continue;
       if (!best || (entry.score || 0) > (best.score || 0)) best = entry;
     }
     return best;
+  }
+
+  function formatRackSnapshot(tiles) {
+    if (!tiles || tiles.length === 0) return '';
+    return tiles.map((tile) => (tile.isBlank ? '?' : tile.letter || '?')).join('');
+  }
+
+  function formatReplayLine(entry, game) {
+    const line = formatHistoryLine(entry, game);
+    if (!entry || entry.takenBack) return line;
+    const bits = [];
+    if (entry.type === 'play') {
+      if (entry.tilesPlayed === 7) bits.push('bingo');
+      if (entry.scoreAfter != null) bits.push(`now ${entry.scoreAfter}`);
+    }
+    if (entry.rackBefore && entry.rackBefore.length) {
+      bits.push(`rack ${formatRackSnapshot(entry.rackBefore)}`);
+    }
+    return bits.length ? `${line} · ${bits.join(' · ')}` : line;
+  }
+
+  function unseenViewerIndex(game) {
+    if (!game) return 0;
+    if (game.mode === 'computer' && Number.isInteger(game.computerSeat)) {
+      return game.computerSeat === 0 ? 1 : 0;
+    }
+    return game.currentPlayerIndex;
+  }
+
+  /**
+   * @param {HTMLElement} parent
+   * @param {object} unseen
+   */
+  function renderUnseenGrid(parent, unseen) {
+    if (!unseen) return;
+
+    const intro = unseen.revealed
+      ? `${unseen.total} leftover tile${unseen.total === 1 ? '' : 's'} not on the board.`
+      : `${unseen.total} unseen tile${unseen.total === 1 ? '' : 's'} — bag plus opponents' racks.`;
+    parent.appendChild(createElement('p', 'unseen-intro', intro));
+
+    if (!unseen.revealed) {
+      parent.appendChild(
+        createElement(
+          'p',
+          'unseen-meta',
+          `${unseen.bagCount} in the bag · ${unseen.opponentCount} on opponents' racks`
+        )
+      );
+    }
+
+    const grid = createElement('div', 'unseen-grid');
+    grid.setAttribute('role', 'list');
+    grid.setAttribute('aria-label', unseen.revealed ? 'Leftover letter counts' : 'Unseen letter counts');
+
+    (unseen.letters || []).forEach((entry) => {
+      const cell = createElement('div', 'unseen-cell');
+      cell.setAttribute('role', 'listitem');
+      if (!entry.count) cell.classList.add('unseen-gone');
+      cell.setAttribute('aria-label', `${entry.letter}, ${entry.count} remaining`);
+      const face = createElement('span', 'unseen-face');
+      face.appendChild(document.createTextNode(entry.letter));
+      if (entry.points) {
+        face.appendChild(createElement('i', null, String(entry.points)));
+      }
+      cell.appendChild(face);
+      cell.appendChild(createElement('span', 'unseen-count', String(entry.count)));
+      grid.appendChild(cell);
+    });
+
+    const blank = createElement('div', 'unseen-cell unseen-blank');
+    blank.setAttribute('role', 'listitem');
+    if (!unseen.blanks) blank.classList.add('unseen-gone');
+    blank.setAttribute('aria-label', `Blanks, ${unseen.blanks} remaining`);
+    const blankFace = createElement('span', 'unseen-face');
+    blankFace.appendChild(document.createTextNode('?'));
+    blank.appendChild(blankFace);
+    blank.appendChild(createElement('span', 'unseen-count', String(unseen.blanks || 0)));
+    grid.appendChild(blank);
+
+    parent.appendChild(grid);
+  }
+
+  /**
+   * @param {HTMLElement} parent
+   * @param {object} game
+   */
+  function renderReplayLog(parent, game) {
+    const history = game && Array.isArray(game.history) ? game.history : [];
+    const stats = Engine && Engine.summarizeHistory ? Engine.summarizeHistory(game) : null;
+
+    if (stats) {
+      const bits = [
+        `${stats.plays} play(s)`,
+        `${stats.bingos} bingo(s)`,
+        `${stats.exchanges} exchange(s)`,
+        `${stats.passes} pass(es)`,
+      ];
+      if (stats.bestPlay) {
+        const name = playerNameAt(game, stats.bestPlay.playerIndex, stats.bestPlay.playerName);
+        bits.push(`best ${name} ${(stats.bestPlay.words || []).join(', ')} +${stats.bestPlay.score}`);
+      }
+      parent.appendChild(createElement('p', 'replay-summary', bits.join(' · ')));
+    }
+
+    if (history.length === 0) {
+      parent.appendChild(createElement('p', 'replay-empty', 'No moves recorded yet.'));
+      return;
+    }
+
+    const list = createElement('ol', 'replay-list');
+    history.forEach((entry) => {
+      const item = createElement('li', 'replay-item');
+      if (entry.takenBack) item.classList.add('turn-log-taken-back');
+      if (entry.type === 'coach') item.classList.add('turn-log-coach');
+      if (entry.type === 'takeback') item.classList.add('turn-log-takeback');
+      item.textContent = formatReplayLine(entry, game);
+      list.appendChild(item);
+    });
+    parent.appendChild(list);
+  }
+
+  /**
+   * @param {HTMLElement} parent
+   * @param {object} stats
+   */
+  function renderLocalStats(parent, stats) {
+    if (!stats || stats.finished === 0) {
+      parent.appendChild(
+        createElement(
+          'p',
+          'stats-empty',
+          'Finish a game to start a local record. These numbers are read from this browser’s completed games and saves.'
+        )
+      );
+      return;
+    }
+
+    const list = createElement('ul', 'stats-list');
+    list.appendChild(
+      createElement('li', null, `${stats.finished} finished game${stats.finished === 1 ? '' : 's'}`)
+    );
+    if (stats.computerGames > 0) {
+      const record = stats.vsComputer || { wins: 0, losses: 0, ties: 0 };
+      list.appendChild(
+        createElement('li', null, `Vs computer: ${record.wins}–${record.losses}–${record.ties}`)
+      );
+    }
+    if (stats.humanGames > 0) {
+      list.appendChild(
+        createElement(
+          'li',
+          null,
+          `${stats.humanGames} two-player game${stats.humanGames === 1 ? '' : 's'}`
+        )
+      );
+    }
+    list.appendChild(
+      createElement('li', null, `${stats.bingos} bingo${stats.bingos === 1 ? '' : 's'}`)
+    );
+    if (stats.bestPlay) {
+      list.appendChild(
+        createElement(
+          'li',
+          null,
+          `Best play: ${stats.bestPlay.playerName} · ${(stats.bestPlay.words || []).join(', ')} +${stats.bestPlay.score}`
+        )
+      );
+    }
+    parent.appendChild(list);
+
+    if (stats.games && stats.games.length > 0) {
+      parent.appendChild(createElement('h3', 'stats-subheading', 'Recent games'));
+      const recent = createElement('ol', 'stats-recent');
+      stats.games.slice(0, 8).forEach((entry) => {
+        const item = createElement('li', 'stats-recent-item');
+        const names = (entry.names || []).join(' vs ');
+        const result = entry.isTie ? 'Tie' : `${entry.winnerName || 'Someone'} won`;
+        const scores = (entry.scores || []).join('–');
+        item.textContent = `${names} · ${result} ${scores}`;
+        recent.appendChild(item);
+      });
+      parent.appendChild(recent);
+    }
   }
 
   function describeBoardCell(row, col, placed, pendingDisplay, premium) {
@@ -572,9 +761,20 @@
 
     const bagEl = createElement('div', 'status-bag');
     bagEl.appendChild(createElement('h3', 'status-subheading', 'Tile bag'));
-    bagEl.appendChild(
-      createElement('p', 'bag-count', `${Engine.getRemainingBagCount(game)} tiles remaining`)
+    const bagCount = Engine.getRemainingBagCount(game);
+    const bagBtn = createElement('button', 'bag-count-btn', `${bagCount} tiles remaining`);
+    bagBtn.type = 'button';
+    bagBtn.setAttribute('aria-haspopup', 'dialog');
+    bagBtn.setAttribute(
+      'aria-label',
+      `${bagCount} tiles remaining. Show the leftover letter grid.`
     );
+    if (options.onBagClick) {
+      bagBtn.addEventListener('click', () => options.onBagClick());
+    } else {
+      bagBtn.disabled = true;
+    }
+    bagEl.appendChild(bagBtn);
     container.appendChild(bagEl);
 
     const history = Array.isArray(game.history) ? game.history : [];
@@ -601,6 +801,15 @@
           createElement('p', 'turn-log-more', `${start} earlier turn(s) not shown.`)
         );
       }
+    }
+
+    if (options.onReplay && history.length > 0) {
+      const replayBtn = createElement('button', 'btn btn-small turn-log-replay', 'Replay');
+      replayBtn.type = 'button';
+      replayBtn.dataset.focusId = 'replay';
+      replayBtn.setAttribute('aria-haspopup', 'dialog');
+      replayBtn.addEventListener('click', () => options.onReplay());
+      logEl.appendChild(replayBtn);
     }
 
     container.appendChild(logEl);
@@ -1114,6 +1323,17 @@
     }
     side.appendChild(helpBtn);
 
+    const statsBtn = createElement('button', 'setup-help-btn', 'Local stats');
+    statsBtn.type = 'button';
+    statsBtn.dataset.focusId = 'setup-stats';
+    statsBtn.setAttribute('aria-haspopup', 'dialog');
+    if (callbacks.onStats) {
+      statsBtn.addEventListener('click', () => callbacks.onStats());
+    } else {
+      statsBtn.disabled = true;
+    }
+    side.appendChild(statsBtn);
+
     container.appendChild(card);
 
     // Avoid autofocus on touch so the OSK does not jump the viewport.
@@ -1169,6 +1389,15 @@
       helpBtn.dataset.focusId = 'help';
       helpBtn.addEventListener('click', () => callbacks.onHelp());
       actions.appendChild(helpBtn);
+    }
+
+    if (callbacks.onStats) {
+      const statsBtn = createElement('button', 'btn', 'Local stats');
+      statsBtn.type = 'button';
+      statsBtn.dataset.focusId = 'stats';
+      statsBtn.setAttribute('aria-haspopup', 'dialog');
+      statsBtn.addEventListener('click', () => callbacks.onStats());
+      actions.appendChild(statsBtn);
     }
 
     container.appendChild(actions);
@@ -1231,7 +1460,35 @@
       );
     }
 
+    if (Engine && Engine.summarizeHistory) {
+      const stats = Engine.summarizeHistory(game);
+      card.appendChild(
+        createElement(
+          'p',
+          'game-over-stats-line',
+          `${stats.plays} play(s) · ${stats.bingos} bingo(s) · ${stats.exchanges} exchange(s) · ${stats.passes} pass(es)`
+        )
+      );
+    }
+
+    if (Engine && Engine.getUnseenTiles) {
+      const leftover = createElement('div', 'game-over-unseen');
+      leftover.appendChild(createElement('h3', 'game-over-section-title', 'Leftover tiles'));
+      renderUnseenGrid(
+        leftover,
+        Engine.getUnseenTiles(game, { revealRacks: true })
+      );
+      card.appendChild(leftover);
+    }
+
     const actions = createElement('div', 'game-over-actions');
+    if (callbacks.onReplay) {
+      const replayBtn = createElement('button', 'btn', 'Replay');
+      replayBtn.type = 'button';
+      replayBtn.setAttribute('aria-haspopup', 'dialog');
+      replayBtn.addEventListener('click', () => callbacks.onReplay());
+      actions.appendChild(replayBtn);
+    }
     if (callbacks.onTakeBack) {
       const takeBackBtn = createElement('button', 'btn', 'Take Back');
       takeBackBtn.type = 'button';
@@ -2620,10 +2877,14 @@
 
     function showGameOver() {
       persistState();
+      if (Storage && Storage.recordFinishedGame) {
+        Storage.recordFinishedGame(game);
+      }
       renderGameOver(overlayEl, game, {
         onNewGame: handleNewGame,
         onRematch: handleRematch,
         onTakeBack: takeBackSnapshot ? handleTakeBack : null,
+        onReplay: handleReplay,
       });
       overlayEl.classList.remove('hidden');
       overlayEl.setAttribute('role', 'dialog');
@@ -2682,7 +2943,11 @@
         }
       );
 
-      renderStatus(statusContainer, game, { thinking });
+      renderStatus(statusContainer, game, {
+        thinking,
+        onBagClick: handleUnseenTiles,
+        onReplay: handleReplay,
+      });
       renderDirectionHint(directionContainer, direction, pendingPlacements.length);
 
       const validation =
@@ -2742,6 +3007,7 @@
         onNewGame: handleNewGame,
         onExport: handleExport,
         onHelp: handleHelp,
+        onStats: handleLocalStats,
       });
 
       persistState();
@@ -2769,6 +3035,49 @@
       openModal({
         mode: 'info',
         title: 'How to play',
+        body,
+        cancelLabel: 'Close',
+      });
+    }
+
+    function handleUnseenTiles() {
+      if (!game || !Engine.getUnseenTiles) return;
+      const unseen = Engine.getUnseenTiles(game, {
+        viewerIndex: unseenViewerIndex(game),
+        revealRacks: game.status === 'ended',
+      });
+      const body = createElement('div', 'unseen-dialog');
+      body.id = 'letterloom-unseen-body';
+      renderUnseenGrid(body, unseen);
+      openModal({
+        mode: 'info',
+        title: unseen.revealed ? 'Leftover tiles' : 'Unseen tiles',
+        body,
+        cancelLabel: 'Close',
+      });
+    }
+
+    function handleReplay() {
+      if (!game) return;
+      const body = createElement('div', 'replay-dialog');
+      body.id = 'letterloom-replay-body';
+      renderReplayLog(body, game);
+      openModal({
+        mode: 'info',
+        title: 'Replay',
+        body,
+        cancelLabel: 'Close',
+      });
+    }
+
+    function handleLocalStats() {
+      const stats = Storage && Storage.getLocalStats ? Storage.getLocalStats() : { finished: 0, games: [] };
+      const body = createElement('div', 'stats-dialog');
+      body.id = 'letterloom-stats-body';
+      renderLocalStats(body, stats);
+      openModal({
+        mode: 'info',
+        title: 'Local stats',
         body,
         cancelLabel: 'Close',
       });
@@ -2815,6 +3124,7 @@
           showSetup(msg);
         },
         onHelp: handleHelp,
+        onStats: handleLocalStats,
         savedGames,
       };
     }
@@ -2912,6 +3222,10 @@
     renderSetup,
     renderSavePanel,
     renderGameOver,
+    renderUnseenGrid,
+    renderReplayLog,
+    renderLocalStats,
+    formatReplayLine,
     mount,
   };
 
