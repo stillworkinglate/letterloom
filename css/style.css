@@ -1587,22 +1587,11 @@ button,
 }
 
 .unseen-face {
-  position: relative;
   display: block;
   font-weight: 700;
   font-size: 0.95rem;
   line-height: 1;
   color: var(--ink);
-}
-
-.unseen-face i {
-  position: absolute;
-  right: -0.55em;
-  bottom: -0.15em;
-  font-size: 0.55rem;
-  font-style: normal;
-  font-weight: 600;
-  color: var(--muted);
 }
 
 .unseen-count {

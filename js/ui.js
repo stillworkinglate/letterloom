@@ -143,12 +143,7 @@
       cell.setAttribute('role', 'listitem');
       if (!entry.count) cell.classList.add('unseen-gone');
       cell.setAttribute('aria-label', `${entry.letter}, ${entry.count} remaining`);
-      const face = createElement('span', 'unseen-face');
-      face.appendChild(document.createTextNode(entry.letter));
-      if (entry.points) {
-        face.appendChild(createElement('i', null, String(entry.points)));
-      }
-      cell.appendChild(face);
+      cell.appendChild(createElement('span', 'unseen-face', entry.letter));
       cell.appendChild(createElement('span', 'unseen-count', String(entry.count)));
       grid.appendChild(cell);
     });
@@ -261,8 +256,10 @@
         const item = createElement('li', 'stats-recent-item');
         const names = (entry.names || []).join(' vs ');
         const result = entry.isTie ? 'Tie' : `${entry.winnerName || 'Someone'} won`;
-        const scores = (entry.scores || []).join('–');
-        item.textContent = `${names} · ${result} ${scores}`;
+        const scores = (entry.names || [])
+          .map((name, index) => `${name} ${entry.scores ? entry.scores[index] : 0}`)
+          .join(' · ');
+        item.textContent = `${names} · ${result} · ${scores}`;
         recent.appendChild(item);
       });
       parent.appendChild(recent);
