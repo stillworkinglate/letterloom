@@ -706,31 +706,12 @@
   function renderStatus(container, game, options = {}) {
     clearElement(container);
     container.classList.add('status-panel');
+    container.setAttribute('aria-label', 'Game status');
 
     const current = game.players[game.currentPlayerIndex];
-    const turnEl = createElement('div', 'status-turn');
-    turnEl.appendChild(createElement('h2', 'status-heading', 'Current turn'));
-    turnEl.appendChild(createElement('p', 'status-current-player', current.name));
-
-    if (options.thinking) {
-      const think = createElement('p', 'status-thinking');
-      think.setAttribute('aria-live', 'polite');
-      think.appendChild(createElement('span', 'status-thinking-dot', ''));
-      const level = game.computerDifficulty
-        ? ` (${game.computerDifficulty})`
-        : '';
-      think.appendChild(document.createTextNode(`${current.name} is thinking${level}…`));
-      turnEl.appendChild(think);
-    } else if (game.status === 'playing') {
-      turnEl.appendChild(
-        createElement('p', 'status-turn-number', `Turn ${game.turnNumber}`)
-      );
-    }
-
-    container.appendChild(turnEl);
 
     const scoresEl = createElement('div', 'status-scores');
-    scoresEl.appendChild(createElement('h3', 'status-subheading', 'Scores'));
+    scoresEl.appendChild(createElement('h3', 'status-subheading sr-only', 'Scores'));
     const list = createElement('ul', 'score-list');
 
     game.players.forEach((player, index) => {
@@ -756,10 +737,19 @@
     scoresEl.appendChild(list);
     container.appendChild(scoresEl);
 
-    const bagEl = createElement('div', 'status-bag');
-    bagEl.appendChild(createElement('h3', 'status-subheading', 'Tile bag'));
+    if (options.thinking) {
+      const think = createElement('p', 'status-thinking');
+      think.setAttribute('aria-live', 'polite');
+      think.appendChild(createElement('span', 'status-thinking-dot', ''));
+      const level = game.computerDifficulty
+        ? ` (${game.computerDifficulty})`
+        : '';
+      think.appendChild(document.createTextNode(`${current.name} is thinking${level}…`));
+      container.appendChild(think);
+    }
+
     const bagCount = Engine.getRemainingBagCount(game);
-    const bagBtn = createElement('button', 'bag-count-btn', `${bagCount} tiles remaining`);
+    const bagBtn = createElement('button', 'bag-count-btn', `${bagCount} in bag`);
     bagBtn.type = 'button';
     bagBtn.setAttribute('aria-haspopup', 'dialog');
     bagBtn.setAttribute(
@@ -771,8 +761,19 @@
     } else {
       bagBtn.disabled = true;
     }
-    bagEl.appendChild(bagBtn);
-    container.appendChild(bagEl);
+
+    if (game.status === 'playing' && !options.thinking) {
+      const meta = createElement('p', 'status-meta');
+      meta.appendChild(
+        document.createTextNode(`${current.name} to play · Turn ${game.turnNumber} · `)
+      );
+      meta.appendChild(bagBtn);
+      container.appendChild(meta);
+    } else {
+      const bagEl = createElement('p', 'status-meta');
+      bagEl.appendChild(bagBtn);
+      container.appendChild(bagEl);
+    }
 
     const history = Array.isArray(game.history) ? game.history : [];
     const logEl = createElement('div', 'status-turn-log');
@@ -782,7 +783,7 @@
       logEl.appendChild(createElement('p', 'turn-log-empty', 'No moves yet.'));
     } else {
       const list = createElement('ol', 'turn-log-list');
-      const start = Math.max(0, history.length - 16);
+      const start = Math.max(0, history.length - 40);
       for (let i = history.length - 1; i >= start; i -= 1) {
         const entry = history[i];
         const item = createElement('li', 'turn-log-item');
@@ -974,6 +975,7 @@
   function renderScorePreview(container, game, pendingPlacements, direction, cachedValidation) {
     clearElement(container);
     container.classList.add('score-preview');
+    container.setAttribute('aria-label', 'Score preview');
 
     if (!pendingPlacements || pendingPlacements.length === 0) {
       container.appendChild(createElement('p', 'preview-empty', 'Place tiles to preview score.'));
@@ -1010,7 +1012,6 @@
       validation.placements
     );
 
-    container.appendChild(createElement('h3', 'preview-heading', 'Score preview'));
     container.appendChild(
       createElement('p', 'preview-total', `+${score.total} points`)
     );
@@ -1020,9 +1021,6 @@
       list.appendChild(createElement('li', null, `${entry.word}: ${entry.score}`));
     });
     container.appendChild(list);
-
-    const words = createElement('p', 'preview-words', validation.words.map((w) => w.word).join(', '));
-    container.appendChild(words);
   }
 
   /**
@@ -1350,7 +1348,7 @@
     clearElement(container);
     container.classList.add('save-panel');
 
-    container.appendChild(createElement('h3', 'status-subheading', 'Game'));
+    container.setAttribute('aria-label', 'Save and game actions');
 
     const statusText = callbacks.saveName
       ? callbacks.lastSavedAt
@@ -1368,22 +1366,25 @@
     saveBtn.addEventListener('click', () => callbacks.onSave && callbacks.onSave());
     actions.appendChild(saveBtn);
 
-    const newGameBtn = createElement('button', 'btn', 'New Game');
+    const newGameBtn = createElement('button', 'btn', 'New');
     newGameBtn.type = 'button';
     newGameBtn.dataset.focusId = 'new-game';
+    newGameBtn.setAttribute('aria-label', 'New Game');
     newGameBtn.addEventListener('click', () => callbacks.onNewGame && callbacks.onNewGame());
     actions.appendChild(newGameBtn);
 
-    const exportBtn = createElement('button', 'btn btn-secondary', 'Export JSON');
+    const exportBtn = createElement('button', 'btn btn-secondary', 'Export');
     exportBtn.type = 'button';
     exportBtn.dataset.focusId = 'export';
+    exportBtn.setAttribute('aria-label', 'Export JSON');
     exportBtn.addEventListener('click', () => callbacks.onExport && callbacks.onExport());
     actions.appendChild(exportBtn);
 
     if (callbacks.onHelp) {
-      const helpBtn = createElement('button', 'btn', 'How to play');
+      const helpBtn = createElement('button', 'btn', 'Help');
       helpBtn.type = 'button';
       helpBtn.dataset.focusId = 'help';
+      helpBtn.setAttribute('aria-label', 'How to play');
       helpBtn.addEventListener('click', () => callbacks.onHelp());
       actions.appendChild(helpBtn);
     }

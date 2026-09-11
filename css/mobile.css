@@ -347,6 +347,15 @@
     padding-top: 0.75rem;
   }
 
+  .status-panel > :first-child {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .status-meta {
+    margin-top: 0.5rem;
+  }
+
   .turn-log-list {
     max-height: 10.5rem;
   }
