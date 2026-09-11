@@ -1709,6 +1709,12 @@ button,
     gap: 0.4rem;
   }
 
+  /* Human game: Exchange is the 5th (last) action — span the row so it
+     does not sit alone in the first of three columns. */
+  .control-actions .btn:last-child:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+
   .save-actions {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.4rem;
