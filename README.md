@@ -20,10 +20,10 @@ Open http://localhost:8080
 ## Play
 
 1. Enter two names, or choose **Play the computer** and a difficulty (or load a saved game). Closest tile to **A** goes first; blanks win the draw. Against the computer you can also start in **Coach mode**.
-2. Each turn: play a word, exchange tiles, or pass. The computer moves automatically. The sidebar keeps a turn log. **Take Back** undoes the last turn (and the computer’s reply); the bag is reshuffled.
+2. Each turn: play a word, exchange tiles, or pass. The computer moves automatically. The sidebar keeps a turn log. **Take Back** undoes the last turn (and the computer’s reply); the bag is reshuffled. **Replay** opens the full history; **Local stats** reads finished games stored in this browser.
 3. Select a rack tile, place it on the board, then **Play Word**. Click a pending tile to take it back. In Coach mode, **Hint** drops the best available play onto the board, and the log notes that play after your turn.
 4. First word must cover the center ★. Later words must connect. All formed words (including crosses) must be in the dictionary.
-5. Blank tiles pick a letter when placed. Exchange needs 7+ tiles in the bag. Game over offers **Rematch** (same names, mode, and difficulty; first player rotates).
+5. Blank tiles pick a letter when placed. Exchange needs 7+ tiles in the bag. Tap **N in bag** for the unseen A–Z leftover grid (bag plus opponents’ racks). After the game it shows every tile still off the board. Game over offers **Rematch** (same names, mode, and difficulty; first player rotates).
 
 **Score:** letter values × DL/TL; word × DW/TW on newly placed tiles only. All 7 tiles in one turn: +50. Game ends when someone empties their rack and the bag is empty, or everyone passes. Leftover tiles subtract; the finisher gains opponents’ leftovers.
 
@@ -38,8 +38,8 @@ Games live in this browser’s local storage and auto-update after each move onc
 
 | | |
 |--|--|
-| **Save** / **Export** | Sidebar |
-| **Load** / **Delete** / **Import** | Start screen |
+| **Save** / **Export** / **Local stats** | Sidebar |
+| **Load** / **Delete** / **Import** / **Local stats** | Start screen |
 
 Export a `.json` if you want a backup or to move a game to another machine.
 
@@ -91,6 +91,7 @@ Random choices are seedable so tests can replay the same decision. If no legal p
 ```bash
 node tests/ai.test.js
 node tests/history-coach.test.js
+node tests/unseen-stats.test.js
 ```
 
 ## License

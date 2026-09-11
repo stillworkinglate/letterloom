@@ -865,6 +865,211 @@
     return game && game.bag ? game.bag.length : 0;
   }
 
+  function emptyLetterCounts() {
+    const counts = {};
+    for (const letter of Object.keys(TILE_DISTRIBUTION)) {
+      counts[letter] = 0;
+    }
+    return counts;
+  }
+
+  function tileLetterKey(tile) {
+    if (!tile) return null;
+    if (tile.isBlank) return ' ';
+    const letter = String(tile.letter || '').toUpperCase();
+    return Object.prototype.hasOwnProperty.call(TILE_DISTRIBUTION, letter) ? letter : null;
+  }
+
+  function addTileToCounts(counts, tile) {
+    const key = tileLetterKey(tile);
+    if (!key) return;
+    counts[key] = (counts[key] || 0) + 1;
+  }
+
+  function collectBoardTiles(board) {
+    const tiles = [];
+    if (!board) return tiles;
+    for (let row = 0; row < board.length; row += 1) {
+      const line = board[row] || [];
+      for (let col = 0; col < line.length; col += 1) {
+        if (line[col]) tiles.push(line[col]);
+      }
+    }
+    return tiles;
+  }
+
+  function subtractLetterCounts(base, used) {
+    const next = emptyLetterCounts();
+    for (const letter of Object.keys(TILE_DISTRIBUTION)) {
+      next[letter] = Math.max(0, (base[letter] || 0) - (used[letter] || 0));
+    }
+    return next;
+  }
+
+  function sumLetterCounts(counts) {
+    let total = 0;
+    for (const letter of Object.keys(TILE_DISTRIBUTION)) {
+      total += counts[letter] || 0;
+    }
+    return total;
+  }
+
+  /**
+   * Letters still unseen by a viewer: the full set minus the board and that
+   * player's rack (bag + opponents). After the game ends, racks are public,
+   * so the leftover grid is everything not on the board.
+   * @param {object} game
+   * @param {{ viewerIndex?: number, revealRacks?: boolean }} [options]
+   */
+  function getUnseenTiles(game, options = {}) {
+    const distribution = emptyLetterCounts();
+    for (const [letter, info] of Object.entries(TILE_DISTRIBUTION)) {
+      distribution[letter] = info.count;
+    }
+
+    const seen = emptyLetterCounts();
+    for (const tile of collectBoardTiles(game && game.board)) {
+      addTileToCounts(seen, tile);
+    }
+
+    const ended = Boolean(game && game.status === 'ended');
+    const revealRacks = options.revealRacks != null ? Boolean(options.revealRacks) : ended;
+    const viewerIndex = Number.isInteger(options.viewerIndex)
+      ? options.viewerIndex
+      : game && Number.isInteger(game.currentPlayerIndex)
+        ? game.currentPlayerIndex
+        : 0;
+
+    if (!revealRacks && game && game.players && game.players[viewerIndex]) {
+      for (const tile of game.players[viewerIndex].rack || []) {
+        addTileToCounts(seen, tile);
+      }
+    }
+
+    const counts = subtractLetterCounts(distribution, seen);
+    const letters = [];
+    for (let i = 0; i < 26; i += 1) {
+      const letter = String.fromCharCode(65 + i);
+      letters.push({
+        letter,
+        count: counts[letter] || 0,
+        points: TILE_DISTRIBUTION[letter].points,
+      });
+    }
+
+    const bagCount = getRemainingBagCount(game);
+    const total = sumLetterCounts(counts);
+
+    return {
+      counts,
+      letters,
+      blanks: counts[' '] || 0,
+      total,
+      bagCount,
+      opponentCount: Math.max(0, total - bagCount),
+      revealed: revealRacks,
+      viewerIndex,
+    };
+  }
+
+  function isCountableHistory(entry) {
+    return Boolean(entry) && !entry.takenBack && entry.type !== 'takeback' && entry.type !== 'coach';
+  }
+
+  function pickBetterPlay(current, entry) {
+    if (!entry || entry.type !== 'play') return current;
+    if (!current || (entry.score || 0) > (current.score || 0)) return entry;
+    return current;
+  }
+
+  /**
+   * Local per-game stats derived from the existing turn history.
+   * @param {object} game
+   */
+  function summarizeHistory(game) {
+    const players = (game && game.players ? game.players : []).map((player, index) => ({
+      index,
+      name: player.name,
+      score: player.score,
+      plays: 0,
+      points: 0,
+      bingos: 0,
+      exchanges: 0,
+      tilesExchanged: 0,
+      passes: 0,
+      bestPlay: null,
+    }));
+
+    const history = game && Array.isArray(game.history) ? game.history : [];
+    let bestPlay = null;
+    let plays = 0;
+    let bingos = 0;
+    let exchanges = 0;
+    let passes = 0;
+
+    for (const entry of history) {
+      if (!isCountableHistory(entry)) continue;
+      const seat = players[entry.playerIndex];
+      if (entry.type === 'play') {
+        plays += 1;
+        if (seat) {
+          seat.plays += 1;
+          seat.points += entry.score || 0;
+          if (entry.tilesPlayed === RACK_SIZE) {
+            seat.bingos += 1;
+            bingos += 1;
+          }
+          seat.bestPlay = pickBetterPlay(seat.bestPlay, entry);
+        } else if (entry.tilesPlayed === RACK_SIZE) {
+          bingos += 1;
+        }
+        bestPlay = pickBetterPlay(bestPlay, entry);
+      } else if (entry.type === 'exchange') {
+        exchanges += 1;
+        if (seat) {
+          seat.exchanges += 1;
+          seat.tilesExchanged += entry.exchange || 0;
+        }
+      } else if (entry.type === 'pass') {
+        passes += 1;
+        if (seat) seat.passes += 1;
+      }
+    }
+
+    const sorted = [...players].sort((a, b) => b.score - a.score);
+    const winner = sorted[0] || null;
+    const isTie = Boolean(winner && sorted[1] && sorted[0].score === sorted[1].score);
+
+    return {
+      players,
+      plays,
+      bingos,
+      exchanges,
+      passes,
+      bestPlay,
+      winnerIndex: winner && !isTie ? winner.index : null,
+      winnerName: winner && !isTie ? winner.name : null,
+      isTie,
+      endReason: game && game.endReason ? game.endReason : null,
+      status: game && game.status ? game.status : null,
+      mode: game && game.mode ? game.mode : 'human',
+      computerSeat: game && Number.isInteger(game.computerSeat) ? game.computerSeat : null,
+      computerDifficulty: game && game.computerDifficulty ? game.computerDifficulty : null,
+    };
+  }
+
+  function historyFingerprint(game) {
+    if (!game) return '';
+    const names = (game.players || []).map((player) => `${player.name}:${player.score}`).join('/');
+    const history = (game.history || [])
+      .map((entry) => {
+        const words = (entry.words || []).join(',');
+        return `${entry.type}:${entry.turnNumber}:${entry.playerIndex}:${entry.score || 0}:${entry.exchange || 0}:${words}:${entry.takenBack ? 1 : 0}`;
+      })
+      .join('|');
+    return `${names}#${game.endReason || ''}#${history}`;
+  }
+
   function normalizeDifficulty(value) {
     const v = String(value || '').toLowerCase();
     if (v === 'easy' || v === 'medium' || v === 'hard') return v;
@@ -985,6 +1190,9 @@
     passTurn,
     checkGameEnd,
     getRemainingBagCount,
+    getUnseenTiles,
+    summarizeHistory,
+    historyFingerprint,
     normalizeDifficulty,
     normalizeComputerSeat,
     normalizeGameMeta,

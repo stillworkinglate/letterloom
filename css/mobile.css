@@ -395,6 +395,22 @@
     width: 100%;
     min-height: 44px;
   }
+
+  .unseen-grid {
+    gap: 0.28rem;
+  }
+
+  .unseen-face {
+    font-size: 0.85rem;
+  }
+
+  .unseen-count {
+    font-size: 0.68rem;
+  }
+
+  .replay-list {
+    max-height: min(18rem, 42dvh);
+  }
 }
 
 /* ≤380px — very narrow phones */
