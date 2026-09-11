@@ -1047,9 +1047,35 @@ button,
   color: var(--text-muted);
 }
 
-.bag-count {
+.bag-count,
+.bag-count-btn {
   margin: 0;
+  padding: 0.35rem 0;
+  min-height: 44px;
+  font: inherit;
   font-size: 0.95rem;
+  color: var(--green);
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.bag-count-btn:disabled {
+  color: var(--text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
+.turn-log-replay {
+  margin-top: 0.65rem;
+  width: 100%;
 }
 
 .last-move-detail {
@@ -1261,7 +1287,7 @@ button,
 
 .game-over-modal {
   width: 100%;
-  max-width: 400px;
+  max-width: 28rem;
 }
 
 .game-over-card {
@@ -1272,6 +1298,8 @@ button,
   box-shadow: var(--card-shadow);
   text-align: center;
   color: var(--ink);
+  max-height: min(40rem, calc(100dvh - 2rem));
+  overflow: auto;
 }
 
 .game-over-title {
@@ -1320,10 +1348,30 @@ button,
   color: var(--green);
 }
 
-.game-over-best {
-  margin: 0 0 1.15rem;
+.game-over-best,
+.game-over-stats-line {
+  margin: 0 0 0.85rem;
   font-size: 0.9rem;
   color: var(--text-muted);
+}
+
+.game-over-section-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.game-over-unseen {
+  margin: 0 0 1.15rem;
+  text-align: left;
+}
+
+.game-over-unseen .unseen-intro,
+.game-over-unseen .unseen-meta {
+  font-size: 0.82rem;
 }
 
 .game-over-actions {
@@ -1375,11 +1423,17 @@ button,
     background: rgba(31, 93, 63, 0.06);
     border-color: var(--green);
   }
+
+  .bag-count-btn:hover:not(:disabled) {
+    color: var(--green-dark);
+    text-decoration-color: var(--green);
+  }
 }
 
 .board-cell:focus-visible,
 .rack-tile:focus-visible,
 .btn:focus-visible,
+.bag-count-btn:focus-visible,
 .setup-help-btn:focus-visible,
 .setup-import-btn:focus-visible,
 .setup-import-link:focus-visible,
@@ -1417,8 +1471,14 @@ button,
   color: var(--ink);
 }
 
-.app-dialog:has(.help-list) {
+.app-dialog:has(.help-list),
+.app-dialog:has(.replay-list) {
   max-width: 32rem;
+}
+
+.app-dialog:has(.unseen-grid),
+.app-dialog:has(.stats-list) {
+  max-width: 28rem;
 }
 
 .app-dialog-title {
@@ -1480,6 +1540,110 @@ button,
 .app-dialog .help-list {
   font-size: 0.92rem;
   color: var(--text-muted);
+}
+
+.setup-help-btn + .setup-help-btn {
+  margin-top: 0.55rem;
+}
+
+.unseen-intro,
+.unseen-meta,
+.replay-summary,
+.replay-empty,
+.stats-empty {
+  margin: 0 0 0.65rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+.unseen-meta {
+  font-size: 0.82rem;
+}
+
+.unseen-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0.25rem 0 0;
+}
+
+.unseen-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.28rem 0.1rem 0.32rem;
+  background: var(--tile);
+  border: 1px solid var(--tile-edge);
+  border-radius: 3px;
+  box-shadow: 0 1px 0 var(--tile-shadow);
+}
+
+.unseen-cell.unseen-gone {
+  opacity: 0.38;
+  box-shadow: none;
+}
+
+.unseen-face {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.unseen-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--green);
+}
+
+.unseen-gone .unseen-count {
+  color: var(--muted);
+}
+
+.replay-list,
+.stats-list,
+.stats-recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.replay-list {
+  max-height: min(22rem, 50dvh);
+  overflow: auto;
+}
+
+.replay-item,
+.stats-list li,
+.stats-recent-item {
+  margin: 0;
+  padding: 0.35rem 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.replay-item:last-child,
+.stats-list li:last-child,
+.stats-recent-item:last-child {
+  border-bottom: none;
+}
+
+.stats-list {
+  margin-bottom: 1rem;
+}
+
+.stats-subheading {
+  margin: 0.25rem 0 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .setup-help-btn {
