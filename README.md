@@ -38,7 +38,7 @@ Games live in this browser’s local storage and auto-update after each move onc
 
 | | |
 |--|--|
-| **Save** / **Export JSON** | Sidebar |
+| **Save** / **Export** | Sidebar |
 | **Load** / **Delete** / **Import** | Start screen |
 
 Export a `.json` if you want a backup or to move a game to another machine.
