@@ -20,10 +20,15 @@
   <script src="js/engine.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/ai.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/ui.js"></script>
   <script>
     LetterloomUI.mount(document.getElementById('app'), {
-      dictionaryUrl: 'data/words.txt'
+      dictionaryUrl: 'data/words.txt',
+      dictionaryUrls: {
+        en: 'data/words.txt',
+        es: 'data/words.es.txt'
+      }
     });
   </script>
 </body>

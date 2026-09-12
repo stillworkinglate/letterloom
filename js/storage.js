@@ -76,6 +76,8 @@
       scores: game.players.map((p) => ({ name: p.name, score: p.score })),
       turnNumber: game.turnNumber,
       gameStatus: game.status,
+      currentName: current ? current.name : '',
+      language: game.language || 'en',
     };
   }
 
