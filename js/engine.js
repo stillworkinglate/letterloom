@@ -13,7 +13,7 @@
   const MIN_BAG_FOR_EXCHANGE = 7;
 
   /** @type {Record<string, { count: number, points: number }>} */
-  const TILE_DISTRIBUTION = {
+  const ENGLISH_TILES = {
     A: { count: 9, points: 1 },
     B: { count: 2, points: 3 },
     C: { count: 2, points: 3 },
@@ -40,8 +40,81 @@
     X: { count: 1, points: 8 },
     Y: { count: 2, points: 4 },
     Z: { count: 1, points: 10 },
-    ' ': { count: 2, points: 0 }, // blank tiles
+    ' ': { count: 2, points: 0 },
   };
+
+  /**
+   * Spanish house bag: Ñ is a letter; CH/LL/RR are two tiles.
+   * Extra C/L/R replace the old digraph tiles so the bag stays at 100.
+   * No K or W.
+   */
+  const SPANISH_TILES = {
+    A: { count: 12, points: 1 },
+    B: { count: 2, points: 3 },
+    C: { count: 5, points: 3 },
+    D: { count: 5, points: 2 },
+    E: { count: 12, points: 1 },
+    F: { count: 1, points: 4 },
+    G: { count: 2, points: 2 },
+    H: { count: 2, points: 4 },
+    I: { count: 6, points: 1 },
+    J: { count: 1, points: 8 },
+    L: { count: 5, points: 1 },
+    M: { count: 2, points: 3 },
+    N: { count: 5, points: 1 },
+    Ñ: { count: 1, points: 8 },
+    O: { count: 9, points: 1 },
+    P: { count: 2, points: 3 },
+    Q: { count: 1, points: 5 },
+    R: { count: 6, points: 1 },
+    S: { count: 6, points: 1 },
+    T: { count: 4, points: 1 },
+    U: { count: 5, points: 1 },
+    V: { count: 1, points: 4 },
+    X: { count: 1, points: 8 },
+    Y: { count: 1, points: 4 },
+    Z: { count: 1, points: 10 },
+    ' ': { count: 2, points: 0 },
+  };
+
+  function alphabetFromTiles(tiles) {
+    return Object.keys(tiles)
+      .filter((letter) => letter !== ' ')
+      .sort((a, b) => letterSortKey(a) - letterSortKey(b));
+  }
+
+  function letterSortKey(letter) {
+    if (letter === 'Ñ') return 'N'.charCodeAt(0) + 0.5;
+    return String(letter).charCodeAt(0);
+  }
+
+  const LANGUAGE_PACKS = {
+    en: { tiles: ENGLISH_TILES, alphabet: alphabetFromTiles(ENGLISH_TILES) },
+    es: { tiles: SPANISH_TILES, alphabet: alphabetFromTiles(SPANISH_TILES) },
+  };
+
+  const TILE_DISTRIBUTION = ENGLISH_TILES;
+
+  function normalizeLanguage(value) {
+    return String(value || '').toLowerCase() === 'es' ? 'es' : 'en';
+  }
+
+  function getLanguagePack(language) {
+    return LANGUAGE_PACKS[normalizeLanguage(language)];
+  }
+
+  function getAlphabet(language) {
+    return getLanguagePack(language).alphabet;
+  }
+
+  function getTileDistribution(language) {
+    return getLanguagePack(language).tiles;
+  }
+
+  function isPlayableLetter(letter, language) {
+    const tiles = getTileDistribution(language);
+    return Boolean(letter) && letter !== ' ' && Object.prototype.hasOwnProperty.call(tiles, letter);
+  }
 
   /**
    * Premium square layout. '.' = none, TW/DW/TL/DL as labeled.
@@ -93,9 +166,10 @@
     return array;
   }
 
-  function createTileBag() {
+  function createTileBag(language) {
     const bag = [];
-    for (const [letter, info] of Object.entries(TILE_DISTRIBUTION)) {
+    const distribution = getTileDistribution(language);
+    for (const [letter, info] of Object.entries(distribution)) {
       for (let i = 0; i < info.count; i += 1) {
         bag.push({
           id: nextTileId++,
@@ -128,12 +202,13 @@
    * Blank precedes A; otherwise closest letter to A wins.
    * Lower sort value = closer to start of alphabet.
    */
-  function openingTileRank(tile) {
+  function openingTileRank(tile, language) {
     if (tile.isBlank) return -1;
-    return tile.letter.charCodeAt(0) - 'A'.charCodeAt(0);
+    const index = getAlphabet(language).indexOf(tile.letter);
+    return index === -1 ? 999 : index;
   }
 
-  function determineFirstPlayer(players, bag) {
+  function determineFirstPlayer(players, bag, language) {
     while (true) {
       const drawn = players.map((player) => {
         const tiles = drawTilesFromBag(bag, 1);
@@ -145,17 +220,17 @@
       }
 
       let bestIndex = 0;
-      let bestRank = openingTileRank(drawn[0].tile);
+      let bestRank = openingTileRank(drawn[0].tile, language);
 
       for (let i = 1; i < drawn.length; i += 1) {
-        const rank = openingTileRank(drawn[i].tile);
+        const rank = openingTileRank(drawn[i].tile, language);
         if (rank < bestRank) {
           bestRank = rank;
           bestIndex = i;
         }
       }
 
-      const winners = drawn.filter((entry) => openingTileRank(entry.tile) === bestRank);
+      const winners = drawn.filter((entry) => openingTileRank(entry.tile, language) === bestRank);
       if (winners.length === 1) {
         for (const entry of drawn) {
           bag.push(entry.tile);
@@ -315,8 +390,8 @@
       let letter = rackTile.letter;
       if (rackTile.isBlank) {
         const assigned = (placement.letter || '').toUpperCase();
-        if (!assigned || assigned.length !== 1 || assigned < 'A' || assigned > 'Z') {
-          return { ok: false, error: 'Blank tiles must be assigned a letter A-Z.' };
+        if (!assigned || assigned.length !== 1 || !isPlayableLetter(assigned, game.language)) {
+          return { ok: false, error: 'Blank tiles must be assigned a letter from the alphabet.' };
         }
         letter = assigned;
       } else if (placement.letter && placement.letter.toUpperCase() !== rackTile.letter) {
@@ -865,23 +940,23 @@
     return game && game.bag ? game.bag.length : 0;
   }
 
-  function emptyLetterCounts() {
+  function emptyLetterCounts(language) {
     const counts = {};
-    for (const letter of Object.keys(TILE_DISTRIBUTION)) {
+    for (const letter of Object.keys(getTileDistribution(language))) {
       counts[letter] = 0;
     }
     return counts;
   }
 
-  function tileLetterKey(tile) {
+  function tileLetterKey(tile, language) {
     if (!tile) return null;
     if (tile.isBlank) return ' ';
     const letter = String(tile.letter || '').toUpperCase();
-    return Object.prototype.hasOwnProperty.call(TILE_DISTRIBUTION, letter) ? letter : null;
+    return isPlayableLetter(letter, language) ? letter : null;
   }
 
-  function addTileToCounts(counts, tile) {
-    const key = tileLetterKey(tile);
+  function addTileToCounts(counts, tile, language) {
+    const key = tileLetterKey(tile, language);
     if (!key) return;
     counts[key] = (counts[key] || 0) + 1;
   }
@@ -898,17 +973,17 @@
     return tiles;
   }
 
-  function subtractLetterCounts(base, used) {
-    const next = emptyLetterCounts();
-    for (const letter of Object.keys(TILE_DISTRIBUTION)) {
+  function subtractLetterCounts(base, used, language) {
+    const next = emptyLetterCounts(language);
+    for (const letter of Object.keys(getTileDistribution(language))) {
       next[letter] = Math.max(0, (base[letter] || 0) - (used[letter] || 0));
     }
     return next;
   }
 
-  function sumLetterCounts(counts) {
+  function sumLetterCounts(counts, language) {
     let total = 0;
-    for (const letter of Object.keys(TILE_DISTRIBUTION)) {
+    for (const letter of Object.keys(getTileDistribution(language))) {
       total += counts[letter] || 0;
     }
     return total;
@@ -922,14 +997,16 @@
    * @param {{ viewerIndex?: number, revealRacks?: boolean }} [options]
    */
   function getUnseenTiles(game, options = {}) {
-    const distribution = emptyLetterCounts();
-    for (const [letter, info] of Object.entries(TILE_DISTRIBUTION)) {
+    const language = game && game.language;
+    const pack = getTileDistribution(language);
+    const distribution = emptyLetterCounts(language);
+    for (const [letter, info] of Object.entries(pack)) {
       distribution[letter] = info.count;
     }
 
-    const seen = emptyLetterCounts();
+    const seen = emptyLetterCounts(language);
     for (const tile of collectBoardTiles(game && game.board)) {
-      addTileToCounts(seen, tile);
+      addTileToCounts(seen, tile, language);
     }
 
     const ended = Boolean(game && game.status === 'ended');
@@ -942,23 +1019,19 @@
 
     if (!revealRacks && game && game.players && game.players[viewerIndex]) {
       for (const tile of game.players[viewerIndex].rack || []) {
-        addTileToCounts(seen, tile);
+        addTileToCounts(seen, tile, language);
       }
     }
 
-    const counts = subtractLetterCounts(distribution, seen);
-    const letters = [];
-    for (let i = 0; i < 26; i += 1) {
-      const letter = String.fromCharCode(65 + i);
-      letters.push({
-        letter,
-        count: counts[letter] || 0,
-        points: TILE_DISTRIBUTION[letter].points,
-      });
-    }
+    const counts = subtractLetterCounts(distribution, seen, language);
+    const letters = getAlphabet(language).map((letter) => ({
+      letter,
+      count: counts[letter] || 0,
+      points: pack[letter].points,
+    }));
 
     const bagCount = getRemainingBagCount(game);
-    const total = sumLetterCounts(counts);
+    const total = sumLetterCounts(counts, language);
 
     return {
       counts,
@@ -1084,6 +1157,7 @@
 
   function normalizeGameMeta(game) {
     if (!game) return game;
+    game.language = normalizeLanguage(game.language);
     if (!Array.isArray(game.history)) game.history = [];
     if (game.openingPlayerIndex != null && !Number.isInteger(game.openingPlayerIndex)) {
       game.openingPlayerIndex = null;
@@ -1118,7 +1192,8 @@
     }
 
     nextTileId = 1;
-    const bag = createTileBag();
+    const language = normalizeLanguage(options.language);
+    const bag = createTileBag(language);
     const players = playerNames.map((name) => ({
       name: String(name),
       rack: [],
@@ -1133,7 +1208,7 @@
     const firstPlayerIndex =
       Number.isInteger(requestedFirst) && requestedFirst >= 0 && requestedFirst < players.length
         ? requestedFirst
-        : determineFirstPlayer(players, bag);
+        : determineFirstPlayer(players, bag, language);
 
     for (const player of players) {
       refillRack(player, bag);
@@ -1151,6 +1226,7 @@
       endScoringApplied: false,
       consecutivePasses: 0,
       isFirstMove: true,
+      language,
       dictionary: options.dictionary || null,
       lastMove: null,
       history: [],
@@ -1179,7 +1255,12 @@
     BINGO_BONUS,
     MIN_BAG_FOR_EXCHANGE,
     TILE_DISTRIBUTION,
+    LANGUAGE_PACKS,
     PREMIUM_LAYOUT,
+    normalizeLanguage,
+    getAlphabet,
+    getTileDistribution,
+    isPlayableLetter,
 
     createGame,
     validatePlacement,

@@ -19,11 +19,11 @@ Open http://localhost:8080
 
 ## Play
 
-1. Enter two names, or choose **Play the computer** and a difficulty (or load a saved game). Closest tile to **A** goes first; blanks win the draw. Against the computer you can also start in **Coach mode**.
+1. Choose **English** or **Español**, then enter two names, or choose **Play the computer** and a difficulty (or load a saved game). Closest tile to **A** goes first; blanks win the draw. Against the computer you can also start in **Coach mode**. The language picks the UI, the dictionary, and the tile bag (saved with the game).
 2. Each turn: play a word, exchange tiles, or pass. The computer moves automatically. The sidebar keeps a turn log. **Take Back** undoes the last turn (and the computer’s reply); the bag is reshuffled. **Replay** opens the full history; **Local stats** reads finished games stored in this browser.
 3. Select a rack tile, place it on the board, then **Play Word**. Click a pending tile to take it back. In Coach mode, **Hint** drops the best available play onto the board, and the log notes that play after your turn.
 4. First word must cover the center ★. Later words must connect. All formed words (including crosses) must be in the dictionary.
-5. Blank tiles pick a letter when placed. Exchange needs 7+ tiles in the bag. Tap **N in bag** for the unseen A–Z leftover grid (bag plus opponents’ racks). After the game it shows every tile still off the board. Game over offers **Rematch** (same names, mode, and difficulty; first player rotates).
+5. Blank tiles pick a letter when placed (A–Z in English; A–Z plus **Ñ**, without K or W, in Spanish). Exchange needs 7+ tiles in the bag. Tap **N in bag** for the leftover letter grid (bag plus opponents’ racks). After the game it shows every tile still off the board. Game over offers **Rematch** (same names, mode, difficulty, and language; first player rotates).
 
 **Score:** letter values × DL/TL; word × DW/TW on newly placed tiles only. All 7 tiles in one turn: +50. Game ends when someone empties their rack and the bag is empty, or everyone passes. Leftover tiles subtract; the finisher gains opponents’ leftovers.
 
@@ -72,9 +72,10 @@ Arrow keys move the focused board cell. Tab leaves the grid. Skip links jump to 
 ```
 index.html
 css/          style.css, mobile.css
-js/           engine.js, storage.js, ai.js, ai-worker.js, ui.js
-data/words.txt   ~178k free lexicon
-tests/        node tests for the engine and computer opponent
+js/           engine.js, storage.js, ai.js, ai-worker.js, i18n.js, ui.js
+data/words.txt      ~178k English lexicon (ENABLE)
+data/words.es.txt   ~180k Spanish lexicon (RLA-ES, accent-folded, Ñ kept)
+tests/        node tests for the engine, computer opponent, and language pack
 LICENSE          MIT
 ```
 
@@ -92,8 +93,11 @@ Random choices are seedable so tests can replay the same decision. If no legal p
 node tests/ai.test.js
 node tests/history-coach.test.js
 node tests/unseen-stats.test.js
+node tests/language.test.js
 ```
 
 ## License
 
-MIT for the code. Keep `data/words.txt` as a free lexicon (e.g. ENABLE). Do not ship NASPA or Collins word lists, and do not present this as Scrabble.
+MIT for the code. Keep `data/words.txt` as a free lexicon (e.g. ENABLE). `data/words.es.txt` is derived from [RLA-ES](https://github.com/sbosio/rla-es) and is LGPL-3.0-or-later / GPL-3.0-or-later / MPL-1.1-or-later; see `data/WORDS-ES-LICENSE.md`. Do not ship NASPA, Collins, or FISE word lists, and do not present this as Scrabble.
+
+Spanish play uses a 100-tile house bag: **Ñ** is a letter, accents are ignored (`CAFÉ` → `CAFE`), and **CH / LL / RR** are two tiles. There are no K or W tiles. This is not an official tournament set.

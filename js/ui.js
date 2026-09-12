@@ -6,33 +6,49 @@
 
   const Engine = global.LetterloomEngine;
   const Storage = global.LetterloomStorage;
+  const I18n = global.LetterloomI18n;
 
-  const PREMIUM_NAMES = {
-    TW: 'triple word score',
-    DW: 'double word score',
-    TL: 'triple letter score',
-    DL: 'double letter score',
-  };
+  function t(key, vars) {
+    return I18n && I18n.t ? I18n.t(key, vars) : key;
+  }
 
-  const HOW_TO_PLAY = [
-    'Select a rack tile, then click or activate an empty board square to place it.',
-    'The first word must cover the center starting square.',
-    'New words must connect to tiles already on the board and form a straight line across or down.',
-    'All words formed, including cross-words, must be in the dictionary.',
-    'Blank tiles let you choose any letter when placed.',
-    'Exchange tiles only when at least 7 tiles remain in the bag.',
-    'Playing all 7 tiles in one turn scores a 50-point bonus.',
-    'You can play another person on the same screen, or play the computer on Easy, Medium, or Hard. The computer uses the same dictionary and rules.',
-    'Take back undoes the turn you just made. Against the computer it also undoes the reply, and the bag is reshuffled.',
-    'Coach mode (vs the computer, chosen at the start) adds Hint and a best-available note after your turns.',
-    'Tap the tiles-remaining count to see unseen letters — the leftover A–Z grid. After the game ends it shows every tile still off the board.',
-    'Replay and local stats read the turn history already stored in this browser. No extra recording.',
-  ];
+  function te(message) {
+    return I18n && I18n.translateEngineError ? I18n.translateEngineError(message) : message;
+  }
+
+  function currentLanguage() {
+    return I18n && I18n.getLanguage ? I18n.getLanguage() : 'en';
+  }
+
+  function premiumName(code) {
+    if (code === 'TW') return t('premiumTW');
+    if (code === 'DW') return t('premiumDW');
+    if (code === 'TL') return t('premiumTL');
+    if (code === 'DL') return t('premiumDL');
+    return code;
+  }
+
+  function howToPlayItems() {
+    return [
+      t('help1'),
+      t('help2'),
+      t('help3'),
+      t('help4'),
+      t('help5'),
+      t('help6'),
+      t('help7'),
+      t('help8'),
+      t('help9'),
+      t('help10'),
+      t('help11'),
+      t('help12'),
+    ];
+  }
 
   function playerNameAt(game, index, fallbackName) {
     if (fallbackName) return fallbackName;
     if (game && game.players && game.players[index]) return game.players[index].name;
-    return 'Player';
+    return t('player');
   }
 
   function formatHistoryLine(entry, game) {
@@ -42,32 +58,32 @@
 
     if (entry.type === 'coach') {
       if (entry.action === 'exchange') {
-        return `Best available: exchange ${entry.exchangeLetters || 'tiles'}`;
+        return t('bestAvailableExchange', { letters: entry.exchangeLetters || t('tiles') });
       }
       if (entry.action === 'pass') {
-        return 'Best available: pass';
+        return t('bestAvailablePass');
       }
-      const words = (entry.words || []).join(', ') || 'a play';
-      const score = entry.score != null ? ` for ${entry.score}` : '';
-      return `Best available: ${words}${score}`;
+      const words = (entry.words || []).join(', ') || t('aPlay');
+      const score = entry.score != null ? t('forScore', { score: entry.score }) : '';
+      return t('bestAvailablePlay', { words, score });
     }
 
     if (entry.type === 'takeback') {
-      return `${name} took back.`;
+      return t('tookBack', { name });
     }
 
     if (entry.type === 'exchange') {
       const letters = entry.exchangeLetters ? ` (${entry.exchangeLetters})` : '';
-      return `${turn}${name} exchanged ${entry.exchange} tile(s)${letters}`;
+      return t('exchanged', { turn, name, n: entry.exchange, letters });
     }
 
     if (entry.type === 'pass') {
-      return `${turn}${name} passed.`;
+      return t('passed', { turn, name });
     }
 
     if (entry.type === 'play') {
-      const words = (entry.words || []).join(', ') || 'a word';
-      return `${turn}${name} played ${words} for ${entry.score} pts`;
+      const words = (entry.words || []).join(', ') || t('aWord');
+      return t('played', { turn, name, words, score: entry.score });
     }
 
     return `${turn}${name}`;
@@ -95,11 +111,11 @@
     if (!entry || entry.takenBack) return line;
     const bits = [];
     if (entry.type === 'play') {
-      if (entry.tilesPlayed === 7) bits.push('bingo');
-      if (entry.scoreAfter != null) bits.push(`now ${entry.scoreAfter}`);
+      if (entry.tilesPlayed === 7) bits.push(t('bingo'));
+      if (entry.scoreAfter != null) bits.push(t('nowScore', { n: entry.scoreAfter }));
     }
     if (entry.rackBefore && entry.rackBefore.length) {
-      bits.push(`rack ${formatRackSnapshot(entry.rackBefore)}`);
+      bits.push(t('rack', { letters: formatRackSnapshot(entry.rackBefore) }));
     }
     return bits.length ? `${line} · ${bits.join(' · ')}` : line;
   }
@@ -120,8 +136,8 @@
     if (!unseen) return;
 
     const intro = unseen.revealed
-      ? `${unseen.total} leftover tile${unseen.total === 1 ? '' : 's'} not on the board.`
-      : `${unseen.total} unseen tile${unseen.total === 1 ? '' : 's'} — bag plus opponents' racks.`;
+      ? t('leftoverIntro', { n: unseen.total })
+      : t('unseenIntro', { n: unseen.total });
     parent.appendChild(createElement('p', 'unseen-intro', intro));
 
     if (!unseen.revealed) {
@@ -129,20 +145,23 @@
         createElement(
           'p',
           'unseen-meta',
-          `${unseen.bagCount} in the bag · ${unseen.opponentCount} on opponents' racks`
+          t('unseenMeta', { bag: unseen.bagCount, opp: unseen.opponentCount })
         )
       );
     }
 
     const grid = createElement('div', 'unseen-grid');
     grid.setAttribute('role', 'list');
-    grid.setAttribute('aria-label', unseen.revealed ? 'Leftover letter counts' : 'Unseen letter counts');
+    grid.setAttribute(
+      'aria-label',
+      unseen.revealed ? t('leftoverLetterCounts') : t('unseenLetterCounts')
+    );
 
     (unseen.letters || []).forEach((entry) => {
       const cell = createElement('div', 'unseen-cell');
       cell.setAttribute('role', 'listitem');
       if (!entry.count) cell.classList.add('unseen-gone');
-      cell.setAttribute('aria-label', `${entry.letter}, ${entry.count} remaining`);
+      cell.setAttribute('aria-label', t('remaining', { letter: entry.letter, n: entry.count }));
       cell.appendChild(createElement('span', 'unseen-face', entry.letter));
       cell.appendChild(createElement('span', 'unseen-count', String(entry.count)));
       grid.appendChild(cell);
@@ -151,7 +170,7 @@
     const blank = createElement('div', 'unseen-cell unseen-blank');
     blank.setAttribute('role', 'listitem');
     if (!unseen.blanks) blank.classList.add('unseen-gone');
-    blank.setAttribute('aria-label', `Blanks, ${unseen.blanks} remaining`);
+    blank.setAttribute('aria-label', t('blanksRemaining', { n: unseen.blanks }));
     const blankFace = createElement('span', 'unseen-face');
     blankFace.appendChild(document.createTextNode('?'));
     blank.appendChild(blankFace);
@@ -170,21 +189,22 @@
     const stats = Engine && Engine.summarizeHistory ? Engine.summarizeHistory(game) : null;
 
     if (stats) {
-      const bits = [
-        `${stats.plays} play(s)`,
-        `${stats.bingos} bingo(s)`,
-        `${stats.exchanges} exchange(s)`,
-        `${stats.passes} pass(es)`,
-      ];
-      if (stats.bestPlay) {
-        const name = playerNameAt(game, stats.bestPlay.playerIndex, stats.bestPlay.playerName);
-        bits.push(`best ${name} ${(stats.bestPlay.words || []).join(', ')} +${stats.bestPlay.score}`);
-      }
-      parent.appendChild(createElement('p', 'replay-summary', bits.join(' · ')));
+      parent.appendChild(
+        createElement(
+          'p',
+          'replay-summary',
+          t('replayStats', {
+            plays: stats.plays,
+            bingos: stats.bingos,
+            exchanges: stats.exchanges,
+            passes: stats.passes,
+          })
+        )
+      );
     }
 
     if (history.length === 0) {
-      parent.appendChild(createElement('p', 'replay-empty', 'No moves recorded yet.'));
+      parent.appendChild(createElement('p', 'replay-empty', t('noReplay')));
       return;
     }
 
@@ -210,52 +230,48 @@
         createElement(
           'p',
           'stats-empty',
-          'Finish a game to start a local record. These numbers are read from this browser’s completed games and saves.'
+          t('statsEmpty')
         )
       );
       return;
     }
 
     const list = createElement('ul', 'stats-list');
-    list.appendChild(
-      createElement('li', null, `${stats.finished} finished game${stats.finished === 1 ? '' : 's'}`)
-    );
+    list.appendChild(createElement('li', null, t('finishedGames', { n: stats.finished })));
     if (stats.computerGames > 0) {
       const record = stats.vsComputer || { wins: 0, losses: 0, ties: 0 };
       list.appendChild(
-        createElement('li', null, `Vs computer: ${record.wins}–${record.losses}–${record.ties}`)
+        createElement('li', null, t('vsComputer', { w: record.wins, l: record.losses, t: record.ties }))
       );
     }
     if (stats.humanGames > 0) {
-      list.appendChild(
-        createElement(
-          'li',
-          null,
-          `${stats.humanGames} two-player game${stats.humanGames === 1 ? '' : 's'}`
-        )
-      );
+      list.appendChild(createElement('li', null, t('twoPlayerGames', { n: stats.humanGames })));
     }
-    list.appendChild(
-      createElement('li', null, `${stats.bingos} bingo${stats.bingos === 1 ? '' : 's'}`)
-    );
+    list.appendChild(createElement('li', null, t('bingoCount', { n: stats.bingos })));
     if (stats.bestPlay) {
       list.appendChild(
         createElement(
           'li',
           null,
-          `Best play: ${stats.bestPlay.playerName} · ${(stats.bestPlay.words || []).join(', ')} +${stats.bestPlay.score}`
+          t('bestPlay', {
+            name: stats.bestPlay.playerName,
+            words: (stats.bestPlay.words || []).join(', '),
+            score: stats.bestPlay.score,
+          })
         )
       );
     }
     parent.appendChild(list);
 
     if (stats.games && stats.games.length > 0) {
-      parent.appendChild(createElement('h3', 'stats-subheading', 'Recent games'));
+      parent.appendChild(createElement('h3', 'stats-subheading', t('recentGames')));
       const recent = createElement('ol', 'stats-recent');
       stats.games.slice(0, 8).forEach((entry) => {
         const item = createElement('li', 'stats-recent-item');
         const names = (entry.names || []).join(' vs ');
-        const result = entry.isTie ? 'Tie' : `${entry.winnerName || 'Someone'} won`;
+        const result = entry.isTie
+          ? t('tie')
+          : t('someoneWon', { name: entry.winnerName || t('someone') });
         const scores = (entry.names || [])
           .map((name, index) => `${name} ${entry.scores ? entry.scores[index] : 0}`)
           .join(' · ');
@@ -267,33 +283,35 @@
   }
 
   function describeBoardCell(row, col, placed, pendingDisplay, premium) {
-    const parts = [`Row ${row + 1}, column ${col + 1}`];
+    const parts = [t('rowCol', { row: row + 1, col: col + 1 })];
     if (row === Engine.CENTER_ROW && col === Engine.CENTER_COL) {
-      parts.push('center starting square');
+      parts.push(t('centerSquare'));
     }
-    if (premium) parts.push(PREMIUM_NAMES[premium] || premium);
+    if (premium) parts.push(premiumName(premium) || premium);
     if (placed) {
       const letter = formatTileLetter(placed) || '?';
-      const blank = placed.isBlank ? ' blank' : '';
-      const pts = placed.isBlank ? '' : `, ${placed.points} point${placed.points === 1 ? '' : 's'}`;
-      parts.push(`occupied, letter ${letter}${blank}${pts}`);
+      const blank = placed.isBlank ? t('blank') : '';
+      const pts = placed.isBlank
+        ? ''
+        : `, ${placed.points} ${placed.points === 1 ? t('point') : t('points')}`;
+      parts.push(t('occupiedLetter', { letter, blank, pts }));
     } else if (pendingDisplay) {
       const letter = formatTileLetter(pendingDisplay) || '?';
-      parts.push(`pending placement, letter ${letter}`);
+      parts.push(t('occupiedLetter', { letter, blank: '', pts: '' }));
     } else {
-      parts.push('empty');
+      parts.push(t('empty'));
     }
     return parts.join(', ');
   }
 
   function describeRackTile(tile, selected, exchangeMode) {
     const letter = formatTileLetter(tile);
-    const parts = [letter ? `Tile ${letter}` : 'Blank tile'];
+    const parts = [letter ? t('tileLetter', { letter }) : t('blankTile')];
     if (!tile.isBlank && tile.points > 0) {
-      parts.push(`${tile.points} point${tile.points === 1 ? '' : 's'}`);
+      parts.push(`${tile.points} ${tile.points === 1 ? t('point') : t('points')}`);
     }
-    if (selected && exchangeMode) parts.push('marked for exchange');
-    else if (selected) parts.push('selected');
+    if (selected && exchangeMode) parts.push(t('markedExchange'));
+    else if (selected) parts.push(t('selected'));
     return parts.join(', ');
   }
 
@@ -310,16 +328,27 @@
     return null;
   }
 
+  function formatSaveStatus(save) {
+    if (!save) return '';
+    if (save.gameStatus === 'ended' || save.status === 'Game over') return t('gameOverStatus');
+    if (save.currentName) return t('saveTurn', { name: save.currentName, n: save.turnNumber });
+    return save.status || '';
+  }
+
   function appendHowToPlay(parent) {
     const list = createElement('ul', 'help-list');
-    HOW_TO_PLAY.forEach((item) => {
+    howToPlayItems().forEach((item) => {
       list.appendChild(createElement('li', null, item));
     });
     parent.appendChild(list);
   }
 
-  function letterPoints(letter) {
-    const info = Engine && Engine.TILE_DISTRIBUTION && Engine.TILE_DISTRIBUTION[letter];
+  function letterPoints(letter, language) {
+    const dist =
+      Engine && Engine.getTileDistribution
+        ? Engine.getTileDistribution(language || currentLanguage())
+        : Engine && Engine.TILE_DISTRIBUTION;
+    const info = dist && dist[letter];
     return info ? info.points : 0;
   }
 
@@ -544,7 +573,7 @@
     container.classList.add('letterloom-board');
     container.id = 'letterloom-board';
     container.setAttribute('role', 'grid');
-    container.setAttribute('aria-label', 'Letterloom board');
+    container.setAttribute('aria-label', t('boardLabel'));
     container.setAttribute('aria-rowcount', String(Engine.BOARD_SIZE));
     container.setAttribute('aria-colcount', String(Engine.BOARD_SIZE));
 
@@ -691,7 +720,7 @@
     const label = createElement(
       'div',
       'rack-player-label',
-      `${player.name}'s rack`
+      t('rackOf', { name: player.name })
     );
     label.id = labelId;
     container.setAttribute('aria-labelledby', labelId);
@@ -706,12 +735,12 @@
   function renderStatus(container, game, options = {}) {
     clearElement(container);
     container.classList.add('status-panel');
-    container.setAttribute('aria-label', 'Game status');
+    container.setAttribute('aria-label', t('gameStatus'));
 
     const current = game.players[game.currentPlayerIndex];
 
     const scoresEl = createElement('div', 'status-scores');
-    scoresEl.appendChild(createElement('h3', 'status-subheading sr-only', 'Scores'));
+    scoresEl.appendChild(createElement('h3', 'status-subheading sr-only', t('scores')));
     const list = createElement('ul', 'score-list');
 
     game.players.forEach((player, index) => {
@@ -727,7 +756,7 @@
         nameWrap.appendChild(createElement('span', 'cpu-badge', 'CPU'));
       }
       if (isCurrent) {
-        nameWrap.appendChild(createElement('span', 'sr-only', ' (current turn)'));
+        nameWrap.appendChild(createElement('span', 'sr-only', t('currentTurn')));
       }
       item.appendChild(nameWrap);
       item.appendChild(createElement('span', 'score-value', String(player.score)));
@@ -744,17 +773,17 @@
       const level = game.computerDifficulty
         ? ` (${game.computerDifficulty})`
         : '';
-      think.appendChild(document.createTextNode(`${current.name} is thinking${level}…`));
+      think.appendChild(document.createTextNode(t('thinking', { name: current.name, level })));
       container.appendChild(think);
     }
 
     const bagCount = Engine.getRemainingBagCount(game);
-    const bagBtn = createElement('button', 'bag-count-btn', `${bagCount} in bag`);
+    const bagBtn = createElement('button', 'bag-count-btn', t('inBag', { n: bagCount }));
     bagBtn.type = 'button';
     bagBtn.setAttribute('aria-haspopup', 'dialog');
     bagBtn.setAttribute(
       'aria-label',
-      `${bagCount} tiles remaining. Show the leftover letter grid.`
+      t('bagAria', { n: bagCount })
     );
     if (options.onBagClick) {
       bagBtn.addEventListener('click', () => options.onBagClick());
@@ -765,7 +794,7 @@
     if (game.status === 'playing' && !options.thinking) {
       const meta = createElement('p', 'status-meta');
       meta.appendChild(
-        document.createTextNode(`${current.name} to play · Turn ${game.turnNumber} · `)
+        document.createTextNode(t('toPlay', { name: current.name, n: game.turnNumber }))
       );
       meta.appendChild(bagBtn);
       container.appendChild(meta);
@@ -777,10 +806,10 @@
 
     const history = Array.isArray(game.history) ? game.history : [];
     const logEl = createElement('div', 'status-turn-log');
-    logEl.appendChild(createElement('h3', 'status-subheading', 'Turn log'));
+    logEl.appendChild(createElement('h3', 'status-subheading', t('turnLog')));
 
     if (history.length === 0) {
-      logEl.appendChild(createElement('p', 'turn-log-empty', 'No moves yet.'));
+      logEl.appendChild(createElement('p', 'turn-log-empty', t('noMovesYet')));
     } else {
       const list = createElement('ol', 'turn-log-list');
       const start = Math.max(0, history.length - 40);
@@ -796,13 +825,13 @@
       logEl.appendChild(list);
       if (start > 0) {
         logEl.appendChild(
-          createElement('p', 'turn-log-more', `${start} earlier turn(s) not shown.`)
+          createElement('p', 'turn-log-more', t('earlierTurns', { n: start }))
         );
       }
     }
 
     if (options.onReplay && history.length > 0) {
-      const replayBtn = createElement('button', 'btn btn-small turn-log-replay', 'Replay');
+      const replayBtn = createElement('button', 'btn btn-small turn-log-replay', t('replay'));
       replayBtn.type = 'button';
       replayBtn.dataset.focusId = 'replay';
       replayBtn.setAttribute('aria-haspopup', 'dialog');
@@ -826,7 +855,7 @@
 
     const locked = Boolean(state.locked);
 
-    const playBtn = createElement('button', 'btn btn-primary', 'Play Word');
+    const playBtn = createElement('button', 'btn btn-primary', t('playWord'));
     playBtn.type = 'button';
     playBtn.dataset.focusId = 'play';
     playBtn.disabled = !state.canPlay || locked;
@@ -836,30 +865,30 @@
     playBtn.addEventListener('click', () => callbacks.onPlay && callbacks.onPlay());
     actions.appendChild(playBtn);
 
-    const clearBtn = createElement('button', 'btn', 'Clear');
+    const clearBtn = createElement('button', 'btn', t('clear'));
     clearBtn.type = 'button';
     clearBtn.dataset.focusId = 'clear';
     clearBtn.disabled = locked;
     clearBtn.addEventListener('click', () => callbacks.onClear && callbacks.onClear());
     actions.appendChild(clearBtn);
 
-    const passBtn = createElement('button', 'btn', 'Pass');
+    const passBtn = createElement('button', 'btn', t('pass'));
     passBtn.type = 'button';
     passBtn.dataset.focusId = 'pass';
     passBtn.disabled = locked;
     passBtn.addEventListener('click', () => callbacks.onPass && callbacks.onPass());
     actions.appendChild(passBtn);
 
-    const shuffleBtn = createElement('button', 'btn', 'Shuffle');
+    const shuffleBtn = createElement('button', 'btn', t('shuffle'));
     shuffleBtn.type = 'button';
     shuffleBtn.dataset.focusId = 'shuffle';
     shuffleBtn.disabled = locked;
-    shuffleBtn.setAttribute('aria-label', 'Shuffle rack');
+    shuffleBtn.setAttribute('aria-label', t('shuffleRack'));
     shuffleBtn.addEventListener('click', () => callbacks.onShuffle && callbacks.onShuffle());
     actions.appendChild(shuffleBtn);
 
     if (!state.exchangeMode) {
-      const exchangeBtn = createElement('button', 'btn', 'Exchange');
+      const exchangeBtn = createElement('button', 'btn', t('exchange'));
       exchangeBtn.type = 'button';
       exchangeBtn.dataset.focusId = 'exchange';
       exchangeBtn.disabled = !state.canExchange || locked;
@@ -871,21 +900,21 @@
     }
 
     if (state.canHint) {
-      const hintBtn = createElement('button', 'btn btn-secondary', 'Hint');
+      const hintBtn = createElement('button', 'btn btn-secondary', t('hint'));
       hintBtn.type = 'button';
       hintBtn.dataset.focusId = 'hint';
       hintBtn.disabled = locked || Boolean(state.coachBusy);
-      hintBtn.title = 'Place the best available play on the board';
+      hintBtn.title = t('hintTitle');
       hintBtn.addEventListener('click', () => callbacks.onHint && callbacks.onHint());
       actions.appendChild(hintBtn);
     }
 
     if (state.canTakeBack) {
-      const takeBackBtn = createElement('button', 'btn', 'Take Back');
+      const takeBackBtn = createElement('button', 'btn', t('takeBack'));
       takeBackBtn.type = 'button';
       takeBackBtn.dataset.focusId = 'take-back';
       takeBackBtn.disabled = locked || Boolean(state.coachBusy);
-      takeBackBtn.setAttribute('aria-label', 'Take back the last turn');
+      takeBackBtn.setAttribute('aria-label', t('takeBack'));
       takeBackBtn.addEventListener('click', () => callbacks.onTakeBack && callbacks.onTakeBack());
       actions.appendChild(takeBackBtn);
     }
@@ -894,16 +923,16 @@
 
     if (state.exchangeMode) {
       const exchangeSection = createElement('div', 'exchange-section');
-      const confirmBtn = createElement('button', 'btn btn-warning', 'Confirm Exchange');
+      const confirmBtn = createElement('button', 'btn btn-warning', t('confirmExchange'));
       confirmBtn.type = 'button';
       confirmBtn.dataset.focusId = 'confirm-exchange';
       confirmBtn.addEventListener('click', () => callbacks.onConfirmExchange && callbacks.onConfirmExchange());
       exchangeSection.appendChild(confirmBtn);
 
-      const cancelBtn = createElement('button', 'btn', 'Cancel');
+      const cancelBtn = createElement('button', 'btn', t('cancel'));
       cancelBtn.type = 'button';
       cancelBtn.dataset.focusId = 'cancel-exchange';
-      cancelBtn.setAttribute('aria-label', 'Cancel exchange');
+      cancelBtn.setAttribute('aria-label', t('cancelExchange'));
       cancelBtn.addEventListener('click', () => callbacks.onCancelExchange && callbacks.onCancelExchange());
       exchangeSection.appendChild(cancelBtn);
       container.appendChild(exchangeSection);
@@ -914,8 +943,8 @@
         'p',
         'sr-only',
         locked
-          ? 'Play Word is unavailable while the computer is taking its turn.'
-          : 'Play Word is unavailable until tiles form a valid word.'
+          ? t('playLockedCpu')
+          : t('playLockedInvalid')
       );
       playHint.id = 'play-disabled-reason';
       container.appendChild(playHint);
@@ -925,7 +954,7 @@
       const exchangeHint = createElement(
         'p',
         'control-message',
-        `Need at least ${Engine.MIN_BAG_FOR_EXCHANGE} tiles in the bag to exchange.`
+        t('needBagToExchange', { n: Engine.MIN_BAG_FOR_EXCHANGE })
       );
       exchangeHint.id = 'exchange-disabled-reason';
       container.appendChild(exchangeHint);
@@ -948,21 +977,21 @@
     if (pendingCount === 0) return;
 
     if (direction === 'horizontal') {
-      const hint = createElement('span', 'direction-hint-text', 'Across');
-      hint.setAttribute('aria-label', 'Playing across');
+      const hint = createElement('span', 'direction-hint-text', t('across'));
+      hint.setAttribute('aria-label', t('playingAcross'));
       container.appendChild(hint);
       return;
     }
 
     if (direction === 'vertical') {
-      const hint = createElement('span', 'direction-hint-text', 'Down');
-      hint.setAttribute('aria-label', 'Playing down');
+      const hint = createElement('span', 'direction-hint-text', t('down'));
+      hint.setAttribute('aria-label', t('playingDown'));
       container.appendChild(hint);
       return;
     }
 
     container.appendChild(
-      createElement('span', 'direction-hint-text direction-hint-ambiguous', 'Place tiles in a straight line')
+      createElement('span', 'direction-hint-text direction-hint-ambiguous', t('placeStraight'))
     );
   }
 
@@ -975,17 +1004,15 @@
   function renderScorePreview(container, game, pendingPlacements, direction, cachedValidation) {
     clearElement(container);
     container.classList.add('score-preview');
-    container.setAttribute('aria-label', 'Score preview');
+    container.setAttribute('aria-label', t('scorePreview'));
 
     if (!pendingPlacements || pendingPlacements.length === 0) {
-      container.appendChild(createElement('p', 'preview-empty', 'Place tiles to preview score.'));
+      container.appendChild(createElement('p', 'preview-empty', t('previewEmpty')));
       return;
     }
 
     if (!direction) {
-      container.appendChild(
-        createElement('p', 'preview-error', 'Tiles must form a straight line — across or down.')
-      );
+      container.appendChild(createElement('p', 'preview-error', t('previewCrooked')));
       return;
     }
 
@@ -995,7 +1022,7 @@
         : Engine.validatePlacement(game, pendingPlacements, direction);
 
     if (!validation.ok) {
-      container.appendChild(createElement('p', 'preview-error', validation.error));
+      container.appendChild(createElement('p', 'preview-error', te(validation.error)));
       return;
     }
 
@@ -1013,7 +1040,7 @@
     );
 
     container.appendChild(
-      createElement('p', 'preview-total', `+${score.total} points`)
+      createElement('p', 'preview-total', t('previewTotal', { n: score.total }))
     );
 
     const list = createElement('ul', 'preview-breakdown');
@@ -1033,15 +1060,13 @@
 
     const { card, main, side } = createSetupFrame();
 
-    main.appendChild(
-      createElement('p', 'setup-tagline', 'Two players, one board, a hundred tiles.')
-    );
+    main.appendChild(createElement('p', 'setup-tagline', t('tagline')));
 
     const savedGames = callbacks.savedGames || [];
 
     if (savedGames.length > 0) {
       const savesSection = createElement('div', 'setup-saves');
-      savesSection.appendChild(createElement('h2', 'setup-saves-title', 'Saved games'));
+      savesSection.appendChild(createElement('h2', 'setup-saves-title', t('savedGames')));
 
       const list = createElement('ul', 'setup-saves-list');
       savedGames.forEach((save) => {
@@ -1049,7 +1074,13 @@
 
         const info = createElement('div', 'setup-save-info');
         info.appendChild(createElement('span', 'setup-save-name', save.name));
-        info.appendChild(createElement('span', 'setup-save-status', save.status));
+        info.appendChild(
+          createElement(
+            'span',
+            'setup-save-status',
+            formatSaveStatus(save)
+          )
+        );
         const scoreText = save.scores.map((s) => `${s.name} ${s.score}`).join(' · ');
         info.appendChild(createElement('span', 'setup-save-scores', scoreText));
         info.appendChild(
@@ -1062,15 +1093,15 @@
         item.appendChild(info);
 
         const actions = createElement('div', 'setup-save-actions');
-        const loadBtn = createElement('button', 'btn btn-primary btn-small', 'Load');
+        const loadBtn = createElement('button', 'btn btn-primary btn-small', t('load'));
         loadBtn.type = 'button';
-        loadBtn.setAttribute('aria-label', `Load save ${save.name}`);
+        loadBtn.setAttribute('aria-label', t('loadSave', { name: save.name }));
         loadBtn.addEventListener('click', () => callbacks.onLoadSave && callbacks.onLoadSave(save.id));
         actions.appendChild(loadBtn);
 
-        const deleteBtn = createElement('button', 'btn btn-small btn-danger', 'Delete');
+        const deleteBtn = createElement('button', 'btn btn-small btn-danger', t('delete'));
         deleteBtn.type = 'button';
-        deleteBtn.setAttribute('aria-label', `Delete save ${save.name}`);
+        deleteBtn.setAttribute('aria-label', t('deleteSave', { name: save.name }));
         deleteBtn.addEventListener('click', () => {
           callbacks.onDeleteSave && callbacks.onDeleteSave(save.id, save.name);
         });
@@ -1087,14 +1118,42 @@
 
     const form = createElement('form', 'setup-form');
 
+    const langField = createElement('fieldset', 'setup-fieldset');
+    langField.appendChild(createElement('legend', null, t('language')));
+    const langRow = createElement('div', 'setup-choice-row');
+    const selectedLang = currentLanguage();
+    appendTileChoice(langRow, {
+      name: 'language',
+      value: 'en',
+      label: t('english'),
+      letter: 'E',
+      points: letterPoints('E', 'en'),
+      checked: selectedLang === 'en',
+    });
+    appendTileChoice(langRow, {
+      name: 'language',
+      value: 'es',
+      label: t('spanish'),
+      letter: 'Ñ',
+      points: letterPoints('Ñ', 'es'),
+      checked: selectedLang === 'es',
+    });
+    langField.appendChild(langRow);
+    form.appendChild(langField);
+    form.querySelectorAll('input[name="language"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (callbacks.onLanguageChange) callbacks.onLanguageChange(radio.value);
+      });
+    });
+
     const modeField = createElement('fieldset', 'setup-fieldset');
-    const modeLegend = createElement('legend', null, "Who's playing");
+    const modeLegend = createElement('legend', null, t('whosPlaying'));
     modeField.appendChild(modeLegend);
     const modeRow = createElement('div', 'setup-choice-row');
     appendTileChoice(modeRow, {
       name: 'game-mode',
       value: 'human',
-      label: 'Two players',
+      label: t('twoPlayers'),
       letter: '2',
       points: '',
       checked: true,
@@ -1102,7 +1161,7 @@
     appendTileChoice(modeRow, {
       name: 'game-mode',
       value: 'computer',
-      label: 'Play the computer',
+      label: t('playComputer'),
       letter: 'C',
       points: letterPoints('C'),
       checked: false,
@@ -1112,7 +1171,7 @@
 
     const humanFields = createElement('div', 'setup-human-fields');
     const field1 = createElement('div', 'form-field');
-    const label1 = createElement('label', null, 'Player 1');
+    const label1 = createElement('label', null, t('playerN', { n: 1 }));
     label1.htmlFor = 'player1-name';
     field1.appendChild(label1);
     const input1 = createElement('input', 'setup-input');
@@ -1125,7 +1184,7 @@
     humanFields.appendChild(field1);
 
     const field2 = createElement('div', 'form-field');
-    const label2 = createElement('label', null, 'Player 2');
+    const label2 = createElement('label', null, t('playerN', { n: 2 }));
     label2.htmlFor = 'player2-name';
     field2.appendChild(label2);
     const input2 = createElement('input', 'setup-input');
@@ -1141,7 +1200,7 @@
     const computerFields = createElement('div', 'setup-computer-fields hidden');
 
     const humanNameField = createElement('div', 'form-field');
-    const humanNameLabel = createElement('label', null, 'Your name');
+    const humanNameLabel = createElement('label', null, t('yourName'));
     humanNameLabel.htmlFor = 'human-name';
     humanNameField.appendChild(humanNameLabel);
     const humanNameInput = createElement('input', 'setup-input');
@@ -1154,12 +1213,12 @@
     computerFields.appendChild(humanNameField);
 
     const difficultyField = createElement('fieldset', 'setup-fieldset');
-    difficultyField.appendChild(createElement('legend', null, 'Difficulty'));
+    difficultyField.appendChild(createElement('legend', null, t('difficulty')));
     const difficultyRow = createElement('div', 'setup-choice-row');
     [
-      { value: 'easy', label: 'Easy', letter: 'E' },
-      { value: 'medium', label: 'Medium', letter: 'M' },
-      { value: 'hard', label: 'Hard', letter: 'H' },
+      { value: 'easy', label: t('easy'), letter: selectedLang === 'es' ? 'F' : 'E' },
+      { value: 'medium', label: t('medium'), letter: 'M' },
+      { value: 'hard', label: t('hard'), letter: selectedLang === 'es' ? 'D' : 'H' },
     ].forEach((choice) => {
       appendTileChoice(difficultyRow, {
         name: 'difficulty',
@@ -1174,7 +1233,7 @@
     computerFields.appendChild(difficultyField);
 
     const coachField = createElement('fieldset', 'setup-fieldset');
-    coachField.appendChild(createElement('legend', null, 'Coach'));
+    coachField.appendChild(createElement('legend', null, t('coach')));
     const coachRow = createElement('div', 'setup-choice-row');
     const coachWrap = createElement('label', 'setup-tile-choice');
     const coachCheck = createElement('input', 'sr-only');
@@ -1185,28 +1244,28 @@
     coachFace.appendChild(document.createTextNode('?'));
     coachWrap.appendChild(coachCheck);
     coachWrap.appendChild(coachFace);
-    coachWrap.appendChild(document.createTextNode('Coach mode'));
+    coachWrap.appendChild(document.createTextNode(t('coachMode')));
     coachRow.appendChild(coachWrap);
     coachField.appendChild(coachRow);
     const coachHint = createElement(
       'p',
       'setup-computer-hint',
-      'Optional. Adds a Hint button and a best-available line after your turns. You cannot turn this on later.'
+      t('coachHint')
     );
     coachField.appendChild(coachHint);
     computerFields.appendChild(coachField);
 
     const seatField = createElement('div', 'form-field');
-    const seatLabel = createElement('label', null, 'Computer plays as');
+    const seatLabel = createElement('label', null, t('computerPlaysAs'));
     seatLabel.htmlFor = 'computer-seat';
     seatField.appendChild(seatLabel);
     const seatSelect = createElement('select', 'setup-input');
     seatSelect.id = 'computer-seat';
     seatSelect.name = 'computerSeat';
-    const seat2 = createElement('option', null, 'Player 2 — you are Player 1');
+    const seat2 = createElement('option', null, t('seatYouP1'));
     seat2.value = '1';
     seat2.selected = true;
-    const seat1 = createElement('option', null, 'Player 1 — you are Player 2');
+    const seat1 = createElement('option', null, t('seatYouP2'));
     seat1.value = '0';
     seatSelect.appendChild(seat2);
     seatSelect.appendChild(seat1);
@@ -1216,7 +1275,7 @@
     const computerHint = createElement(
       'p',
       'setup-computer-hint',
-      'Closest tile to A still goes first. Hard favors score and rack leave; it is not an exhaustive strategy search.'
+      t('computerHint')
     );
     computerFields.appendChild(computerHint);
     form.appendChild(computerFields);
@@ -1242,26 +1301,28 @@
       e.preventDefault();
       const mode = (form.querySelector('input[name="game-mode"]:checked') || {}).value || 'human';
       if (mode === 'computer') {
-        const humanName = humanNameInput.value.trim() || 'Player 1';
+        const humanName = humanNameInput.value.trim() || t('playerN', { n: 1 });
         const seat = Number(seatSelect.value) === 0 ? 0 : 1;
         const difficulty =
           (form.querySelector('input[name="difficulty"]:checked') || {}).value || 'medium';
-        const names = seat === 0 ? ['Computer', humanName] : [humanName, 'Computer'];
+        const cpuName = t('computerName');
+        const names = seat === 0 ? [cpuName, humanName] : [humanName, cpuName];
         callbacks.onStart(names, {
           mode: 'computer',
           computerSeat: seat,
           difficulty,
           coachMode: Boolean(coachCheck.checked),
+          language: currentLanguage(),
         });
         return;
       }
 
-      const p1 = input1.value.trim() || 'Player 1';
-      const p2 = input2.value.trim() || 'Player 2';
-      callbacks.onStart([p1, p2], { mode: 'human' });
+      const p1 = input1.value.trim() || t('playerN', { n: 1 });
+      const p2 = input2.value.trim() || t('playerN', { n: 2 });
+      callbacks.onStart([p1, p2], { mode: 'human', language: currentLanguage() });
     });
 
-    const startBtn = createElement('button', 'btn btn-primary setup-start', 'Start game');
+    const startBtn = createElement('button', 'btn btn-primary setup-start', t('startGame'));
     startBtn.type = 'submit';
     form.appendChild(startBtn);
 
@@ -1269,7 +1330,7 @@
 
     const links = createElement('div', 'setup-links');
     if (callbacks.onImport) {
-      const importLabel = createElement('label', 'setup-import-link setup-import-btn', 'Resume a saved match');
+      const importLabel = createElement('label', 'setup-import-link setup-import-btn', t('resumeSaved'));
       importLabel.htmlFor = 'import-save-file';
       const importInput = createElement('input', 'setup-import-input');
       importInput.type = 'file';
@@ -1283,7 +1344,7 @@
         try {
           await callbacks.onImport(file);
         } catch (err) {
-          callbacks.onImportError && callbacks.onImportError(err.message || 'Import failed.');
+          callbacks.onImportError && callbacks.onImportError(err.message || t('importFailed'));
         }
       });
       importLabel.appendChild(importInput);
@@ -1292,7 +1353,7 @@
       links.appendChild(createElement('span'));
     }
 
-    const github = createElement('a', null, 'Source on GitHub');
+    const github = createElement('a', null, t('sourceGithub'));
     github.href = 'https://github.com/stillworkinglate/letterloom';
     links.appendChild(github);
     main.appendChild(links);
@@ -1301,13 +1362,13 @@
       const importHint = createElement(
         'p',
         'setup-import-hint',
-        'Load a .json save from the saves/ folder or a download.'
+        t('importHint')
       );
       importHint.id = 'import-save-hint';
       main.appendChild(importHint);
     }
 
-    const helpBtn = createElement('button', 'setup-help-btn', 'How to play');
+    const helpBtn = createElement('button', 'setup-help-btn', t('howToPlay'));
     helpBtn.type = 'button';
     helpBtn.dataset.focusId = 'setup-help';
     helpBtn.setAttribute('aria-haspopup', 'dialog');
@@ -1318,7 +1379,7 @@
     }
     side.appendChild(helpBtn);
 
-    const statsBtn = createElement('button', 'setup-help-btn', 'Local stats');
+    const statsBtn = createElement('button', 'setup-help-btn', t('localStats'));
     statsBtn.type = 'button';
     statsBtn.dataset.focusId = 'setup-stats';
     statsBtn.setAttribute('aria-haspopup', 'dialog');
@@ -1348,49 +1409,52 @@
     clearElement(container);
     container.classList.add('save-panel');
 
-    container.setAttribute('aria-label', 'Save and game actions');
+    container.setAttribute('aria-label', t('saveActions'));
 
     const statusText = callbacks.saveName
       ? callbacks.lastSavedAt
-        ? `"${callbacks.saveName}" — saved ${new Date(callbacks.lastSavedAt).toLocaleTimeString()}`
-        : `"${callbacks.saveName}"`
-      : 'Not saved yet — click Save to keep this game.';
+        ? t('savedAs', {
+            name: callbacks.saveName,
+            time: new Date(callbacks.lastSavedAt).toLocaleTimeString(),
+          })
+        : t('savedNamed', { name: callbacks.saveName })
+      : t('notSavedYet');
 
     container.appendChild(createElement('p', 'save-status', statusText));
 
     const actions = createElement('div', 'save-actions');
 
-    const saveBtn = createElement('button', 'btn btn-primary', 'Save');
+    const saveBtn = createElement('button', 'btn btn-primary', t('save'));
     saveBtn.type = 'button';
     saveBtn.dataset.focusId = 'save';
     saveBtn.addEventListener('click', () => callbacks.onSave && callbacks.onSave());
     actions.appendChild(saveBtn);
 
-    const newGameBtn = createElement('button', 'btn', 'New');
+    const newGameBtn = createElement('button', 'btn', t('new'));
     newGameBtn.type = 'button';
     newGameBtn.dataset.focusId = 'new-game';
-    newGameBtn.setAttribute('aria-label', 'New Game');
+    newGameBtn.setAttribute('aria-label', t('newGame'));
     newGameBtn.addEventListener('click', () => callbacks.onNewGame && callbacks.onNewGame());
     actions.appendChild(newGameBtn);
 
-    const exportBtn = createElement('button', 'btn btn-secondary', 'Export');
+    const exportBtn = createElement('button', 'btn btn-secondary', t('export'));
     exportBtn.type = 'button';
     exportBtn.dataset.focusId = 'export';
-    exportBtn.setAttribute('aria-label', 'Export JSON');
+    exportBtn.setAttribute('aria-label', t('export'));
     exportBtn.addEventListener('click', () => callbacks.onExport && callbacks.onExport());
     actions.appendChild(exportBtn);
 
     if (callbacks.onHelp) {
-      const helpBtn = createElement('button', 'btn', 'Help');
+      const helpBtn = createElement('button', 'btn', t('help'));
       helpBtn.type = 'button';
       helpBtn.dataset.focusId = 'help';
-      helpBtn.setAttribute('aria-label', 'How to play');
+      helpBtn.setAttribute('aria-label', t('howToPlay'));
       helpBtn.addEventListener('click', () => callbacks.onHelp());
       actions.appendChild(helpBtn);
     }
 
     if (callbacks.onStats) {
-      const statsBtn = createElement('button', 'btn', 'Local stats');
+      const statsBtn = createElement('button', 'btn', t('localStats'));
       statsBtn.type = 'button';
       statsBtn.dataset.focusId = 'stats';
       statsBtn.setAttribute('aria-haspopup', 'dialog');
@@ -1411,16 +1475,16 @@
     container.classList.add('game-over-modal');
 
     const card = createElement('div', 'game-over-card');
-    const title = createElement('h2', 'game-over-title', 'Game Over');
+    const title = createElement('h2', 'game-over-title', t('gameOver'));
     title.id = 'game-over-title';
     card.appendChild(title);
 
     const reasonText =
       game.endReason === 'last_tile_played'
-        ? 'A player used their last tile.'
+        ? t('lastTilePlayed')
         : game.endReason === 'all_passed'
-          ? 'All players passed in succession.'
-          : 'The game has ended.';
+          ? t('allPassed')
+          : t('gameEnded');
 
     card.appendChild(createElement('p', 'game-over-reason', reasonText));
 
@@ -1432,7 +1496,7 @@
       createElement(
         'p',
         'game-over-winner',
-        isTie ? "It's a tie!" : `${winner.name} wins!`
+        isTie ? t('itsATie') : t('wins', { name: winner.name })
       )
     );
 
@@ -1441,7 +1505,7 @@
       const item = createElement('li', 'final-score-item');
       item.appendChild(createElement('span', 'final-rank', `${index + 1}.`));
       item.appendChild(createElement('span', 'final-name', player.name));
-      item.appendChild(createElement('span', 'final-points', `${player.score} pts`));
+      item.appendChild(createElement('span', 'final-points', t('pts', { n: player.score })));
       list.appendChild(item);
     });
     card.appendChild(list);
@@ -1453,7 +1517,7 @@
         createElement(
           'p',
           'game-over-best',
-          `Best play: ${name} · ${(bestPlay.words || []).join(', ')} +${bestPlay.score}`
+          t('bestPlay', { name, words: (bestPlay.words || []).join(', '), score: bestPlay.score })
         )
       );
     }
@@ -1464,14 +1528,19 @@
         createElement(
           'p',
           'game-over-stats-line',
-          `${stats.plays} play(s) · ${stats.bingos} bingo(s) · ${stats.exchanges} exchange(s) · ${stats.passes} pass(es)`
+          t('replayStats', {
+            plays: stats.plays,
+            bingos: stats.bingos,
+            exchanges: stats.exchanges,
+            passes: stats.passes,
+          })
         )
       );
     }
 
     if (Engine && Engine.getUnseenTiles) {
       const leftover = createElement('div', 'game-over-unseen');
-      leftover.appendChild(createElement('h3', 'game-over-section-title', 'Leftover tiles'));
+      leftover.appendChild(createElement('h3', 'game-over-section-title', t('leftoverTiles')));
       renderUnseenGrid(
         leftover,
         Engine.getUnseenTiles(game, { revealRacks: true })
@@ -1481,25 +1550,25 @@
 
     const actions = createElement('div', 'game-over-actions');
     if (callbacks.onReplay) {
-      const replayBtn = createElement('button', 'btn', 'Replay');
+      const replayBtn = createElement('button', 'btn', t('replay'));
       replayBtn.type = 'button';
       replayBtn.setAttribute('aria-haspopup', 'dialog');
       replayBtn.addEventListener('click', () => callbacks.onReplay());
       actions.appendChild(replayBtn);
     }
     if (callbacks.onTakeBack) {
-      const takeBackBtn = createElement('button', 'btn', 'Take Back');
+      const takeBackBtn = createElement('button', 'btn', t('takeBack'));
       takeBackBtn.type = 'button';
       takeBackBtn.addEventListener('click', () => callbacks.onTakeBack());
       actions.appendChild(takeBackBtn);
     }
     if (callbacks.onRematch) {
-      const rematchBtn = createElement('button', 'btn btn-primary', 'Rematch');
+      const rematchBtn = createElement('button', 'btn btn-primary', t('rematch'));
       rematchBtn.type = 'button';
       rematchBtn.addEventListener('click', () => callbacks.onRematch());
       actions.appendChild(rematchBtn);
     }
-    const newGameBtn = createElement('button', callbacks.onRematch ? 'btn' : 'btn btn-primary', 'New Game');
+    const newGameBtn = createElement('button', callbacks.onRematch ? 'btn' : 'btn btn-primary', t('newGame'));
     newGameBtn.type = 'button';
     newGameBtn.addEventListener('click', () => callbacks.onNewGame && callbacks.onNewGame());
     actions.appendChild(newGameBtn);
@@ -1535,12 +1604,49 @@
     let lastFocus = null;
     let lastAnnouncedTurn = '';
     let dialogOpen = false;
+    const dictionaryCache = Object.create(null);
+    const dictionaryUrls = Object.assign(
+      { en: 'data/words.txt', es: 'data/words.es.txt' },
+      options.dictionaryUrls || {}
+    );
+    if (options.dictionaryUrl) dictionaryUrls.en = options.dictionaryUrl;
+
+    function parseWordList(text) {
+      return new Set(
+        String(text)
+          .trim()
+          .split('\n')
+          .map((w) => w.trim().toUpperCase())
+          .filter((w) => w.length >= 2 && w.length <= 15)
+      );
+    }
+
+    async function loadDictionary(language) {
+      const lang = Engine.normalizeLanguage ? Engine.normalizeLanguage(language) : language === 'es' ? 'es' : 'en';
+      if (dictionaryCache[lang]) return dictionaryCache[lang];
+      const url = dictionaryUrls[lang] || dictionaryUrls.en;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const set = parseWordList(await response.text());
+      if (set.size < 1000) throw new Error('Dictionary too small');
+      dictionaryCache[lang] = set;
+      return set;
+    }
+
+    function activateDictionary(set) {
+      options.dictionary = set || null;
+      localAiIndex = null;
+      if (aiWorker && set) {
+        aiWorker.postMessage({ type: 'init', words: Array.from(set) });
+        aiWorkerReady = false;
+      }
+    }
 
     const skipNav = createElement('nav', 'skip-nav');
-    skipNav.setAttribute('aria-label', 'Skip links');
-    const skipRack = createElement('a', 'skip-link', 'Skip to rack');
+    skipNav.setAttribute('aria-label', t('skipLinks'));
+    const skipRack = createElement('a', 'skip-link', t('skipRack'));
     skipRack.href = '#letterloom-rack';
-    const skipControls = createElement('a', 'skip-link', 'Skip to controls');
+    const skipControls = createElement('a', 'skip-link', t('skipControls'));
     skipControls.href = '#letterloom-controls';
     skipNav.appendChild(skipRack);
     skipNav.appendChild(skipControls);
@@ -1619,7 +1725,7 @@
     mainArea.appendChild(boardArea);
 
     const sidebar = createElement('div', 'game-sidebar');
-    sidebar.setAttribute('aria-label', 'Game controls and status');
+    sidebar.setAttribute('aria-label', t('sidebarAria'));
     sidebar.appendChild(controlsContainer);
     sidebar.appendChild(previewContainer);
     sidebar.appendChild(statusContainer);
@@ -1716,7 +1822,7 @@
         let input = null;
         if (config.mode === 'prompt') {
           const field = createElement('div', 'form-field');
-          const label = createElement('label', null, config.inputLabel || 'Name');
+          const label = createElement('label', null, config.inputLabel || t('name'));
           label.htmlFor = 'letterloom-dialog-input';
           input = createElement('input', 'setup-input');
           input.id = 'letterloom-dialog-input';
@@ -1731,12 +1837,16 @@
         if (config.mode === 'letters') {
           const picker = createElement('div', 'letter-picker');
           picker.setAttribute('role', 'group');
-          picker.setAttribute('aria-label', 'Choose a letter');
-          for (let i = 0; i < 26; i += 1) {
-            const letter = String.fromCharCode(65 + i);
+          picker.setAttribute('aria-label', t('chooseLetter'));
+          const letters =
+            config.letters ||
+            (Engine && Engine.getAlphabet ? Engine.getAlphabet(currentLanguage()) : null) ||
+            Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+          for (let i = 0; i < letters.length; i += 1) {
+            const letter = letters[i];
             const btn = createElement('button', 'btn', letter);
             btn.type = 'button';
-            btn.setAttribute('aria-label', `Letter ${letter}`);
+            btn.setAttribute('aria-label', t('letterN', { letter }));
             btn.addEventListener('click', () => close(letter));
             picker.appendChild(btn);
           }
@@ -1754,7 +1864,7 @@
         }
 
         const actions = createElement('div', 'app-dialog-actions');
-        const cancelBtn = createElement('button', 'btn', config.cancelLabel || 'Cancel');
+        const cancelBtn = createElement('button', 'btn', config.cancelLabel || t('cancel'));
         cancelBtn.type = 'button';
         cancelBtn.addEventListener('click', () => close(config.mode === 'confirm' ? false : null));
         actions.appendChild(cancelBtn);
@@ -1763,7 +1873,7 @@
           const confirmBtn = createElement(
             'button',
             config.danger ? 'btn btn-danger' : 'btn btn-primary',
-            config.confirmLabel || 'OK'
+            config.confirmLabel || t('ok')
           );
           confirmBtn.type = 'button';
           confirmBtn.addEventListener('click', () => {
@@ -1868,9 +1978,10 @@
     function promptBlankLetter() {
       return openModal({
         mode: 'letters',
-        title: 'Blank tile',
-        message: 'Choose the letter this blank should represent.',
-        cancelLabel: 'Cancel',
+        title: t('blankTile'),
+        message: t('chooseBlank'),
+        cancelLabel: t('cancel'),
+        letters: Engine.getAlphabet ? Engine.getAlphabet(game && game.language) : null,
       });
     }
 
@@ -1953,7 +2064,7 @@
         const id = parseCoachRequestId(msg.requestId);
         if (id !== coachRequestId) return;
         if (msg.type === 'error') {
-          finishCoachRequest(null, msg.error || 'Hint search failed.');
+          finishCoachRequest(null, msg.error || t('hintFailed'));
           return;
         }
         if (msg.type === 'result') {
@@ -1963,7 +2074,7 @@
       }
       if (msg.requestId !== thinkRequestId) return;
       if (msg.type === 'error') {
-        finishComputerTurn(null, msg.error || 'Computer search failed.');
+        finishComputerTurn(null, msg.error || t('computerSearchFailed'));
         return;
       }
       if (msg.type === 'result') {
@@ -1998,9 +2109,9 @@
             inflightThink = null;
             runComputerTurnLocal(queued.requestId, queued.snapshot, queued.difficulty, queued.seed);
           } else if (computerThinking) {
-            finishComputerTurn(null, 'Computer worker failed.');
+            finishComputerTurn(null, t('computerWorkerFailed'));
           } else if (coachBusy) {
-            finishCoachRequest(null, 'Computer worker failed.');
+            finishCoachRequest(null, t('computerWorkerFailed'));
           }
         });
         if (options.dictionary) {
@@ -2062,28 +2173,32 @@
         result = Engine.passTurn(game);
         showMessage(
           failureMessage
-            ? `${failureMessage} ${computer.name} passes.`
-            : `${computer.name} could not move and passed.`,
+            ? `${failureMessage} ${t('computerPasses', { name: computer.name })}`
+            : t('computerCouldNot', { name: computer.name }),
           Boolean(failureMessage)
         );
       } else {
         result = applyComputerAction(action);
         if (!result.ok) {
           result = Engine.passTurn(game);
-          showMessage(
-            `${computer.name} attempted an invalid move and passed.`,
-            true
-          );
-        } else if (AI) {
-          showMessage(AI.explainAction(action, computer.name));
+          showMessage(t('computerInvalid', { name: computer.name }), true);
         } else if (action.type === 'play') {
           showMessage(
-            `${computer.name} played ${(action.words || []).join(', ')} for ${action.score} points.`
+            t('computerPlayed', {
+              name: computer.name,
+              words: (action.words || []).join(', '),
+              n: action.score,
+            })
           );
         } else if (action.type === 'exchange') {
-          showMessage(`${computer.name} exchanged ${(action.tileIds || []).length} tile(s).`);
+          showMessage(
+            t('computerExchanged', {
+              name: computer.name,
+              n: (action.tileIds || []).length,
+            })
+          );
         } else {
-          showMessage(`${computer.name} passed.`);
+          showMessage(t('computerPassed', { name: computer.name }));
         }
       }
 
@@ -2101,7 +2216,7 @@
         try {
           const index = ensureLocalIndex();
           if (!index || !AI) {
-            finishComputerTurn(null, 'Computer opponent is unavailable.');
+            finishComputerTurn(null, t('computerUnavailable'));
             return;
           }
           const result = AI.decideTurn(snapshot, {
@@ -2114,7 +2229,7 @@
           finishComputerTurn(result);
         } catch (err) {
           if (requestId !== thinkRequestId) return;
-          finishComputerTurn(null, err.message || 'Computer search failed.');
+          finishComputerTurn(null, err.message || t('computerSearchFailed'));
         }
       }, 0);
     }
@@ -2128,7 +2243,7 @@
       root.classList.add('computer-thinking');
       const requestId = (thinkRequestId += 1);
       const computer = game.players[game.computerSeat];
-      showMessage(`${computer.name} is thinking…`);
+      showMessage(t('computerThinking', { name: computer.name }));
       refresh();
 
       const snapshot = AI
@@ -2140,6 +2255,7 @@
             isFirstMove: Boolean(game.isFirstMove),
             status: game.status,
             turnNumber: game.turnNumber,
+            language: game.language || 'en',
           };
 
       const seed = AI
@@ -2190,7 +2306,7 @@
 
     function applyHintAction(action) {
       if (!game || !action) {
-        showMessage('No hint available.', true);
+        showMessage(t('noHint'), true);
         return;
       }
 
@@ -2204,7 +2320,7 @@
         exchangeMode = false;
         exchangeTileIds = [];
         showMessage(
-          `Hint: ${(action.words || []).join(', ')} for ${action.score} points. Play Word or Clear.`
+          t('hintPlay', { words: (action.words || []).join(', '), n: action.score })
         );
         return;
       }
@@ -2217,14 +2333,14 @@
           selectedTileId = null;
           exchangeMode = true;
           exchangeTileIds = (action.tileIds || []).slice();
-          showMessage(`No legal play — exchange ${letters}, then confirm.`);
+          showMessage(t('hintExchangeConfirm', { letters }));
         } else {
-          showMessage(`No legal play — exchange ${letters}.`);
+          showMessage(t('hintExchange', { letters }));
         }
         return;
       }
 
-      showMessage('No legal play or exchange.');
+      showMessage(t('noLegalPlay'));
     }
 
     function recordCoachFromAction(action, context) {
@@ -2301,7 +2417,7 @@
         try {
           const index = ensureLocalIndex();
           if (!index || !AI) {
-            finishCoachRequest(null, 'Coach is unavailable.');
+            finishCoachRequest(null, t('coachUnavailable'));
             return;
           }
           const result = AI.decideTurn(snapshot, {
@@ -2314,7 +2430,7 @@
           finishCoachRequest(result);
         } catch (err) {
           if (numericId !== coachRequestId) return;
-          finishCoachRequest(null, err.message || 'Hint search failed.');
+          finishCoachRequest(null, err.message || t('hintFailed'));
         }
       }, 0);
     }
@@ -2325,7 +2441,7 @@
       coachContext = extras.context || null;
 
       if (!game || !AI) {
-        finishCoachRequest(null, 'Coach is unavailable.');
+        finishCoachRequest(null, t('coachUnavailable'));
         return;
       }
 
@@ -2343,10 +2459,10 @@
       pendingCoach = payload;
 
       if (kind === 'hint') {
-        showMessage('Looking for a play…');
+        showMessage(t('lookingForPlay'));
         refresh();
       } else {
-        showMessage('Checking the best available play…');
+        showMessage(t('checkingBest'));
         refresh();
       }
 
@@ -2387,6 +2503,7 @@
             isFirstMove: Boolean(game.isFirstMove),
             status: game.status,
             turnNumber: game.turnNumber,
+            language: game.language || 'en',
           };
       return JSON.parse(JSON.stringify(raw));
     }
@@ -2499,7 +2616,7 @@
       if (!game || exchangeMode || isHumanLocked()) return;
       const player = game.players[game.currentPlayerIndex];
       Engine.shuffleInPlace(player.rack);
-      announce('Rack shuffled.');
+      announce(t('rackShuffled'));
       refresh();
     }
 
@@ -2508,7 +2625,7 @@
 
       const resolved = resolvePlacementDirection(game, pendingPlacements);
       if (!resolved.direction) {
-        showMessage('Tiles must form a straight line — across or down.', true);
+        showMessage(t('previewCrooked'), true);
         refresh();
         return;
       }
@@ -2518,13 +2635,16 @@
       const result = Engine.applyMove(game, pendingPlacements, resolved.direction);
       if (!result.ok) {
         takeBackSnapshot = previousTakeBack;
-        showMessage(result.error, true);
+        showMessage(te(result.error), true);
         refresh();
         return;
       }
 
       showMessage(
-        `Played for ${result.score.total} points: ${result.words.map((w) => w.word).join(', ')}`
+        t('playedFor', {
+          n: result.score.total,
+          words: result.words.map((w) => w.word).join(', '),
+        })
       );
       afterHumanCommit(result, review);
     }
@@ -2540,7 +2660,7 @@
     function handlePass() {
       if (!game || isHumanLocked()) return;
       if (pendingPlacements.length > 0) {
-        showMessage('Clear your placements before passing.', true);
+        showMessage(t('clearBeforePass'), true);
         return;
       }
 
@@ -2549,11 +2669,11 @@
       const result = Engine.passTurn(game);
       if (!result.ok) {
         takeBackSnapshot = previousTakeBack;
-        showMessage(result.error, true);
+        showMessage(te(result.error), true);
         return;
       }
 
-      showMessage('Turn passed.');
+      showMessage(t('turnPassed'));
       afterHumanCommit(result, review);
     }
 
@@ -2561,7 +2681,7 @@
       if (!game || isHumanLocked()) return;
       if (game.bag.length < Engine.MIN_BAG_FOR_EXCHANGE) {
         showMessage(
-          `Cannot exchange — fewer than ${Engine.MIN_BAG_FOR_EXCHANGE} tiles in the bag.`,
+          t('cannotExchangeBag', { n: Engine.MIN_BAG_FOR_EXCHANGE }),
           true
         );
         return;
@@ -2570,13 +2690,13 @@
       exchangeTileIds = [];
       pendingPlacements = [];
       selectedTileId = null;
-      showMessage('Select tiles to exchange, then confirm.');
+      showMessage(t('selectExchange'));
       refresh();
     }
 
     function handleConfirmExchange() {
       if (!game || exchangeTileIds.length === 0) {
-        showMessage('Select at least one tile to exchange.', true);
+        showMessage(t('selectOneExchange'), true);
         return;
       }
 
@@ -2585,11 +2705,11 @@
       const result = Engine.exchangeTiles(game, exchangeTileIds);
       if (!result.ok) {
         takeBackSnapshot = previousTakeBack;
-        showMessage(result.error, true);
+        showMessage(te(result.error), true);
         return;
       }
 
-      showMessage(`Exchanged ${result.exchanged} tile(s).`);
+      showMessage(t('exchangedN', { n: result.exchanged }));
       afterHumanCommit(result, review);
     }
 
@@ -2624,7 +2744,7 @@
       const snapshot = clonePublicSnapshot(humanPlayerIndex());
       if (!snapshot) {
         restoreHintStaging();
-        showMessage('Hint is unavailable.', true);
+        showMessage(t('hintUnavailable'), true);
         refresh();
         return;
       }
@@ -2638,13 +2758,10 @@
 
       const confirmed = await openModal({
         mode: 'confirm',
-        title: 'Take back',
-        message:
-          game.mode === 'computer'
-            ? 'Undo your last turn and the computer’s reply? The bag is reshuffled.'
-            : 'Undo the last turn? The bag is reshuffled.',
-        confirmLabel: 'Take Back',
-        cancelLabel: 'Cancel',
+        title: t('takeBackTitle'),
+        message: game.mode === 'computer' ? t('takeBackCpu') : t('takeBackHuman'),
+        confirmLabel: t('takeBack'),
+        cancelLabel: t('cancel'),
       });
       if (!confirmed || !takeBackSnapshot || !game) return;
 
@@ -2665,7 +2782,7 @@
       overlayEl.removeAttribute('aria-modal');
       overlayEl.removeAttribute('aria-labelledby');
       gameEl.inert = false;
-      showMessage('Last turn taken back. The bag was reshuffled.');
+      showMessage(t('takenBack'));
       persistState();
       refresh();
     }
@@ -2678,6 +2795,7 @@
         computerSeat: game.computerSeat,
         difficulty: game.computerDifficulty,
         coachMode: Boolean(game.coachMode),
+        language: game.language || currentLanguage(),
       };
       if (Number.isInteger(game.openingPlayerIndex)) {
         setup.firstPlayerIndex = (game.openingPlayerIndex + 1) % names.length;
@@ -2712,7 +2830,7 @@
 
     function restoreFromSnapshot(snapshot, saveId) {
       if (!Storage || !Storage.validateSnapshot(snapshot)) {
-        showMessage('Could not restore saved game.', true);
+        showMessage(t('couldNotRestore'), true);
         return false;
       }
 
@@ -2720,6 +2838,10 @@
       clearTakeBack();
       game = snapshot.game;
       Engine.normalizeGameMeta(game);
+      if (I18n) I18n.setLanguage(game.language);
+      if (dictionaryCache[game.language]) {
+        activateDictionary(dictionaryCache[game.language]);
+      }
       game.dictionary = options.dictionary || null;
 
       const ui = snapshot.ui || {};
@@ -2750,7 +2872,7 @@
         showGameOver();
       } else {
         const current = game.players[game.currentPlayerIndex];
-        showMessage(`Loaded "${activeSaveName}" — ${current.name}'s turn.`);
+        showMessage(t('loadedTurn', { name: activeSaveName, player: current.name }));
       }
 
       refresh();
@@ -2762,21 +2884,33 @@
       if (!Storage) return;
       const snapshot = Storage.getSave(saveId);
       if (!snapshot) {
-        showMessage('Save not found.', true);
+        showMessage(t('saveNotFound'), true);
         showSetup();
         return;
       }
-      restoreFromSnapshot(snapshot, saveId);
+      const lang =
+        snapshot.game && snapshot.game.language
+          ? snapshot.game.language
+          : 'en';
+      loadDictionary(lang)
+        .then((set) => {
+          activateDictionary(set);
+          restoreFromSnapshot(snapshot, saveId);
+        })
+        .catch((err) => {
+          console.warn('Could not load dictionary:', err);
+          showSetup(t('dictError'));
+        });
     }
 
     async function deleteSavedGame(saveId, saveName) {
       if (!Storage) return;
       const confirmed = await openModal({
         mode: 'confirm',
-        title: 'Delete save',
-        message: `Delete save "${saveName || 'this game'}"? This cannot be undone.`,
-        confirmLabel: 'Delete',
-        cancelLabel: 'Cancel',
+        title: t('deleteSaveTitle'),
+        message: t('deleteSaveConfirm', { name: saveName || t('thisGame') }),
+        confirmLabel: t('delete'),
+        cancelLabel: t('cancel'),
         danger: true,
       });
       if (!confirmed) return;
@@ -2793,9 +2927,14 @@
       if (!Storage) throw new Error('Storage module not loaded.');
       const snapshot = await Storage.readSnapshotFile(file);
       const result = Storage.importSave(snapshot);
-      if (!result.ok) throw new Error(result.error || 'Import failed.');
+      if (!result.ok) throw new Error(result.error || t('importFailed'));
+      const lang =
+        result.snapshot.game && result.snapshot.game.language
+          ? result.snapshot.game.language
+          : 'en';
+      activateDictionary(await loadDictionary(lang));
       restoreFromSnapshot(result.snapshot, result.id);
-      showMessage(`Imported "${result.snapshot.name}".`);
+      showMessage(t('imported', { name: result.snapshot.name }));
     }
 
     async function handleSave() {
@@ -2806,12 +2945,12 @@
         const defaultName = Storage.buildDefaultName(game);
         const input = await openModal({
           mode: 'prompt',
-          title: 'Save game',
-          message: 'Name this save so you can find it later.',
-          inputLabel: 'Save name',
+          title: t('saveGame'),
+          message: t('saveNamePrompt'),
+          inputLabel: t('saveName'),
           inputDefault: defaultName,
-          confirmLabel: 'Save',
-          cancelLabel: 'Cancel',
+          confirmLabel: t('save'),
+          cancelLabel: t('cancel'),
         });
         if (input === null) return;
         name = String(input).trim() || defaultName;
@@ -2823,14 +2962,14 @@
       });
 
       if (!result.ok) {
-        showMessage(result.error || 'Could not save game.', true);
+        showMessage(result.error || t('couldNotSave'), true);
         return;
       }
 
       activeSaveId = result.id;
       activeSaveName = result.snapshot.name;
       lastSavedAt = result.snapshot.savedAt;
-      showMessage(`Game saved as "${activeSaveName}".`);
+      showMessage(t('gameSaved', { name: activeSaveName }));
       refresh();
     }
 
@@ -2838,10 +2977,10 @@
       if (game && game.status === 'playing' && !activeSaveId) {
         const confirmed = await openModal({
           mode: 'confirm',
-          title: 'Start a new game',
-          message: 'Start a new game without saving? The current game will be lost.',
-          confirmLabel: 'New Game',
-          cancelLabel: 'Cancel',
+          title: t('startNewTitle'),
+          message: t('startNewConfirm'),
+          confirmLabel: t('newGame'),
+          cancelLabel: t('cancel'),
         });
         if (!confirmed) return;
       }
@@ -2870,7 +3009,7 @@
       });
       if (!snapshot) return;
       Storage.downloadSnapshot(snapshot);
-      showMessage('Save file downloaded.');
+      showMessage(t('saveDownloaded'));
     }
 
     function showGameOver() {
@@ -2890,7 +3029,10 @@
       overlayEl.setAttribute('aria-labelledby', 'game-over-title');
       gameEl.inert = true;
       const winner = game.players.slice().sort((a, b) => b.score - a.score)[0];
-      announce(`Game over. ${winner ? `${winner.name} wins with ${winner.score} points.` : ''}`, true);
+      announce(
+        winner ? t('announceGameOver', { name: winner.name, n: winner.score }) : t('gameOver'),
+        true
+      );
       const btn = overlayEl.querySelector('button');
       if (btn) btn.focus();
     }
@@ -2909,11 +3051,11 @@
       root.classList.toggle('computer-thinking', locked);
       thinkBanner.classList.toggle('hidden', !locked);
       thinkBanner.textContent = reviewing
-        ? 'Checking the best available play…'
+        ? t('checkingBest')
         : hinting
-          ? 'Looking for a play…'
+          ? t('lookingForPlay')
           : thinking
-            ? `${game.players[game.currentPlayerIndex].name} is thinking…`
+            ? t('computerThinking', { name: game.players[game.currentPlayerIndex].name })
             : '';
 
       const resolved = resolvePlacementDirection(game, pendingPlacements);
@@ -2987,13 +3129,13 @@
           bagCount: game.bag.length,
           locked,
           message: thinking
-            ? `${game.players[game.currentPlayerIndex].name} is thinking…`
+            ? t('computerThinking', { name: game.players[game.currentPlayerIndex].name })
             : coachBusy && coachKind === 'review'
-              ? 'Checking the best available play…'
+              ? t('checkingBest')
               : coachBusy && coachKind === 'hint'
-                ? 'Looking for a play…'
+                ? t('lookingForPlay')
             : exchangeMode
-              ? 'Exchange mode — select tiles from your rack.'
+              ? t('exchangeMode')
               : '',
         }
       );
@@ -3017,8 +3159,8 @@
           lastAnnouncedTurn = turnKey;
           announce(
             thinking
-              ? `${current.name} is thinking. Turn ${game.turnNumber}.`
-              : `${current.name}'s turn. Turn ${game.turnNumber}.`
+              ? t('announceThinking', { name: current.name, n: game.turnNumber })
+              : t('announceTurn', { name: current.name, n: game.turnNumber })
           );
         }
       }
@@ -3032,9 +3174,9 @@
       appendHowToPlay(body);
       openModal({
         mode: 'info',
-        title: 'How to play',
+        title: t('howToPlay'),
         body,
-        cancelLabel: 'Close',
+        cancelLabel: t('close'),
       });
     }
 
@@ -3049,9 +3191,9 @@
       renderUnseenGrid(body, unseen);
       openModal({
         mode: 'info',
-        title: unseen.revealed ? 'Leftover tiles' : 'Unseen tiles',
+        title: unseen.revealed ? t('leftoverTiles') : t('unseenTiles'),
         body,
-        cancelLabel: 'Close',
+        cancelLabel: t('close'),
       });
     }
 
@@ -3062,9 +3204,9 @@
       renderReplayLog(body, game);
       openModal({
         mode: 'info',
-        title: 'Replay',
+        title: t('replay'),
         body,
-        cancelLabel: 'Close',
+        cancelLabel: t('close'),
       });
     }
 
@@ -3075,18 +3217,21 @@
       renderLocalStats(body, stats);
       openModal({
         mode: 'info',
-        title: 'Local stats',
+        title: t('localStats'),
         body,
-        cancelLabel: 'Close',
+        cancelLabel: t('close'),
       });
     }
 
     function startGame(playerNames, setupOptions = {}) {
-      const dictionary = options.dictionary || null;
+      const language = setupOptions.language || currentLanguage();
+      if (I18n) I18n.setLanguage(language);
+      const begin = (dictionary) => {
       cancelComputerTurn();
       clearTakeBack();
       game = Engine.createGame(playerNames, {
         dictionary,
+        language,
         mode: setupOptions.mode,
         computerSeat: setupOptions.computerSeat,
         computerDifficulty: setupOptions.difficulty,
@@ -3106,9 +3251,20 @@
       boardFocus = { row: Engine.CENTER_ROW, col: Engine.CENTER_COL };
       lastAnnouncedTurn = '';
       const first = game.players[game.currentPlayerIndex];
-      showMessage(`${first.name} goes first — the first word must cover the center starting square.`);
+      showMessage(t('firstGoes', { name: first.name }));
       refresh();
       maybeStartComputerTurn();
+      };
+
+      loadDictionary(language)
+        .then((set) => {
+          activateDictionary(set);
+          begin(set);
+        })
+        .catch((err) => {
+          console.warn('Could not load dictionary:', err);
+          showSetup(t('dictError'));
+        });
     }
 
     function buildSetupCallbacks() {
@@ -3123,6 +3279,10 @@
         },
         onHelp: handleHelp,
         onStats: handleLocalStats,
+        onLanguageChange: (lang) => {
+          if (I18n) I18n.setLanguage(lang);
+          showSetup();
+        },
         savedGames,
       };
     }
@@ -3135,44 +3295,26 @@
       clearElement(setupEl);
       setupEl.classList.add('setup-screen');
       const loadingFrame = createSetupFrame();
-      const loading = createElement('p', 'setup-loading', 'Loading dictionary…');
+      const loading = createElement('p', 'setup-loading', t('loadingDict'));
       loading.setAttribute('role', 'status');
       loading.setAttribute('aria-live', 'polite');
       loadingFrame.main.appendChild(loading);
       setupEl.appendChild(loadingFrame.card);
 
-      if (options.dictionaryUrl && !options.dictionary) {
-        try {
-          const response = await fetch(options.dictionaryUrl);
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          const text = await response.text();
-          options.dictionary = new Set(
-            text
-              .trim()
-              .split('\n')
-              .map((w) => w.trim().toUpperCase())
-              .filter((w) => w.length >= 2 && w.length <= 15)
-          );
-          if (options.dictionary.size < 1000) {
-            throw new Error('Dictionary too small');
-          }
-        } catch (err) {
-          console.warn('Could not load dictionary:', err);
-          clearElement(setupEl);
-          setupEl.classList.add('setup-screen');
-          const errFrame = createSetupFrame();
-          errFrame.main.appendChild(
-            createElement(
-              'p',
-              'setup-error',
-              'Could not load the word dictionary. Start a local server from the project folder (see README).'
-            )
-          );
-          setupEl.appendChild(errFrame.card);
-          return;
-        }
+      const preferred = currentLanguage();
+      try {
+        const set = await loadDictionary(preferred);
+        activateDictionary(set);
+        const other = preferred === 'es' ? 'en' : 'es';
+        loadDictionary(other).catch(() => {});
+      } catch (err) {
+        console.warn('Could not load dictionary:', err);
+        clearElement(setupEl);
+        setupEl.classList.add('setup-screen');
+        const errFrame = createSetupFrame();
+        errFrame.main.appendChild(createElement('p', 'setup-error', t('dictError')));
+        setupEl.appendChild(errFrame.card);
+        return;
       }
 
       if (options.dictionary) {

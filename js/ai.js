@@ -42,6 +42,53 @@
     Z: -4,
   };
 
+  const LEAVE_WEIGHT_ES = {
+    A: 1.2,
+    B: -2,
+    C: 0.5,
+    D: 0,
+    E: 1.2,
+    F: -3,
+    G: -1.5,
+    H: -2,
+    I: 0.8,
+    J: -4,
+    L: 0.8,
+    M: -0.5,
+    N: 0.5,
+    Ñ: -2,
+    O: 1,
+    P: -0.5,
+    Q: -5,
+    R: 0.8,
+    S: 7,
+    T: 0.5,
+    U: 0,
+    V: -4,
+    X: -4,
+    Y: -2,
+    Z: -4,
+  };
+
+  function defaultAlphabet() {
+    const letters = [];
+    for (let i = 0; i < 26; i += 1) {
+      letters.push(String.fromCharCode(65 + i));
+    }
+    return letters;
+  }
+
+  function alphabetFor(engine, language) {
+    if (engine && typeof engine.getAlphabet === 'function') {
+      return engine.getAlphabet(language);
+    }
+    return defaultAlphabet();
+  }
+
+  function leaveWeightsFor(language) {
+    return String(language || '').toLowerCase() === 'es' ? LEAVE_WEIGHT_ES : LEAVE_WEIGHT;
+  }
+
   const HARD_LEAVE_WEIGHT = 0.85;
   const MEDIUM_LEAVE_WEIGHT = 0.35;
 
@@ -118,7 +165,7 @@
     return letters;
   }
 
-  function computeCrossChecks(board, wordSet, playDirection) {
+  function computeCrossChecks(board, wordSet, playDirection, alphabet) {
     const vertical = playDirection === 'horizontal';
     const checks = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
 
@@ -141,8 +188,9 @@
         const prefix = before.join('');
         const suffix = after.join('');
         const allowed = new Set();
-        for (let i = 0; i < 26; i += 1) {
-          const letter = String.fromCharCode(65 + i);
+        const letters = alphabet || defaultAlphabet();
+        for (let i = 0; i < letters.length; i += 1) {
+          const letter = letters[i];
           if (wordSet.has(prefix + letter + suffix)) allowed.add(letter);
         }
         checks[row][col] = allowed;
@@ -260,9 +308,10 @@
     return rack.filter((tile) => !used.has(tile.id));
   }
 
-  function evaluateLeave(tiles) {
+  function evaluateLeave(tiles, language) {
     if (!tiles || tiles.length === 0) return 0;
 
+    const leaveWeights = leaveWeightsFor(language);
     let value = 0;
     let vowels = 0;
     let consonants = 0;
@@ -278,7 +327,7 @@
         continue;
       }
       const letter = tile.letter;
-      value += LEAVE_WEIGHT[letter] != null ? LEAVE_WEIGHT[letter] : 0;
+      value += leaveWeights[letter] != null ? leaveWeights[letter] : 0;
       counts[letter] = (counts[letter] || 0) + 1;
       if (VOWELS.has(letter)) vowels += 1;
       else consonants += 1;
@@ -309,6 +358,7 @@
       currentPlayerIndex: 0,
       status: snapshot.status || 'playing',
       dictionary: wordSet,
+      language: snapshot.language || 'en',
       isFirstMove: snapshot.isFirstMove,
       bag: [],
       consecutivePasses: 0,
@@ -338,8 +388,9 @@
       });
     };
 
-    const horizontalCross = computeCrossChecks(board, index.words, 'horizontal');
-    const verticalCross = computeCrossChecks(board, index.words, 'vertical');
+    const alphabet = alphabetFor(engine, snapshot.language);
+    const horizontalCross = computeCrossChecks(board, index.words, 'horizontal', alphabet);
+    const verticalCross = computeCrossChecks(board, index.words, 'vertical', alphabet);
 
     for (let i = 0; i < SIZE; i += 1) {
       if (lineCanConnect(board, true, i, emptyBoard)) {
@@ -375,7 +426,7 @@
         validation.placements
       );
       const leaveTiles = leftoverRack(rack, validation.placements);
-      const leave = evaluateLeave(leaveTiles);
+      const leave = evaluateLeave(leaveTiles, snapshot.language);
 
       moves.push({
         type: 'play',
@@ -451,7 +502,7 @@
     return ranked[0];
   }
 
-  function chooseExchange(rack, bagCount, engine) {
+  function chooseExchange(rack, bagCount, engine, language) {
     const minBag = engine && engine.MIN_BAG_FOR_EXCHANGE != null ? engine.MIN_BAG_FOR_EXCHANGE : 7;
     if (!rack || rack.length === 0 || bagCount < minBag) return null;
 
@@ -467,7 +518,7 @@
         if (mask & (1 << i)) tileIds.push(rack[i].id);
         else keep.push(rack[i]);
       }
-      const leave = evaluateLeave(keep);
+      const leave = evaluateLeave(keep, language);
       if (leave > bestLeave || (leave === bestLeave && tileIds.length < bestCount)) {
         bestLeave = leave;
         bestCount = tileIds.length;
@@ -517,7 +568,7 @@
       };
     }
 
-    const exchange = chooseExchange(snapshot.rack, snapshot.bagCount, engine);
+    const exchange = chooseExchange(snapshot.rack, snapshot.bagCount, engine, snapshot.language);
     if (exchange) return { ...exchange, moveCount: 0 };
     return { type: 'pass', moveCount: 0 };
   }
@@ -543,6 +594,7 @@
       consecutivePasses: game.consecutivePasses,
       scores: game.players.map((player) => player.score),
       playerCount: game.players.length,
+      language: game.language || 'en',
     };
   }
 
@@ -564,6 +616,7 @@
     HARD_LEAVE_WEIGHT,
     MEDIUM_LEAVE_WEIGHT,
     LEAVE_WEIGHT,
+    LEAVE_WEIGHT_ES,
     buildIndex,
     createRng,
     mixSeed,

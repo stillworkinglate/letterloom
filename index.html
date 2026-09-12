@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
   <meta charset="UTF-8">
+  <meta name="google" content="notranslate">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#10301f">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,10 +21,15 @@
   <script src="js/engine.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/ai.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/ui.js"></script>
   <script>
     LetterloomUI.mount(document.getElementById('app'), {
-      dictionaryUrl: 'data/words.txt'
+      dictionaryUrl: 'data/words.txt',
+      dictionaryUrls: {
+        en: 'data/words.txt',
+        es: 'data/words.es.txt'
+      }
     });
   </script>
 </body>
