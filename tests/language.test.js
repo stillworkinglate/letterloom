@@ -146,4 +146,25 @@ test('i18n switches setup and error strings', () => {
   assert.strictEqual(I18n.t('playWord'), 'Play Word');
 });
 
+test('English and Spanish catalogs share the same keys', () => {
+  const src = fs.readFileSync(path.join(root, 'js/i18n.js'), 'utf8');
+  const enBlock = src.slice(src.indexOf('const EN ='), src.indexOf('const ES ='));
+  const esBlock = src.slice(src.indexOf('const ES ='), src.indexOf('const CATALOGS'));
+  const keys = (block) =>
+    [...block.matchAll(/^\s{4}([A-Za-z0-9]+):/gm)].map((match) => match[1]);
+  const en = new Set(keys(enBlock));
+  const es = new Set(keys(esBlock));
+  assert.deepStrictEqual([...en].filter((key) => !es.has(key)), []);
+  assert.deepStrictEqual([...es].filter((key) => !en.has(key)), []);
+});
+
+test('Spanish lexicon keeps Ñ words and common playables', () => {
+  const text = fs.readFileSync(path.join(root, 'data/words.es.txt'), 'utf8');
+  const words = new Set(text.split(/\n/));
+  assert.ok(words.has('NIÑO'));
+  assert.ok(words.has('CASA'));
+  assert.ok(!words.has('NINO'));
+  assert.ok(!text.split(/\n/).some((word) => /[KW]/.test(word)));
+});
+
 console.log(`\n${passed} tests passed`);

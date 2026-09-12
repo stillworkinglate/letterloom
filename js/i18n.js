@@ -223,7 +223,7 @@
     help3:
       'New words must connect to tiles already on the board and form a straight line across or down.',
     help4: 'All words formed, including cross-words, must be in the dictionary.',
-    help5: 'Blank tiles let you choose any letter when placed.',
+    help5: 'Blank tiles let you choose a letter from the alphabet when placed.',
     help6: 'Exchange tiles only when at least 7 tiles remain in the bag.',
     help7: 'Playing all 7 tiles in one turn scores a 50-point bonus.',
     help8:
@@ -475,7 +475,8 @@
     help3:
       'Las palabras nuevas deben unirse a fichas ya puestas y formar una línea recta horizontal o vertical.',
     help4: 'Todas las palabras formadas, incluidas las cruzadas, deben estar en el diccionario.',
-    help5: 'Las fichas blancas eligen una letra al colocarlas.',
+    help5:
+      'Las fichas blancas eligen una letra del alfabeto al colocarlas (incluye Ñ; no hay K ni W).',
     help6: 'Solo puedes cambiar fichas si quedan al menos 7 en la bolsa.',
     help7: 'Usar las 7 fichas en un turno suma 50 puntos extra.',
     help8:
@@ -579,6 +580,7 @@
     }
     if (typeof document !== 'undefined' && document.documentElement) {
       document.documentElement.lang = language === 'es' ? 'es' : 'en';
+      document.documentElement.setAttribute('translate', 'no');
     }
     return language;
   }
