@@ -42,7 +42,57 @@
       t('help10'),
       t('help11'),
       t('help12'),
+      t('help13'),
     ];
+  }
+
+  function isLargePrintOn() {
+    return Boolean(Storage && Storage.getPrefs && Storage.getPrefs().largePrint);
+  }
+
+  function applyLargePrintClass(on) {
+    if (typeof document === 'undefined' || !document.documentElement) return;
+    document.documentElement.classList.toggle('large-print', Boolean(on));
+  }
+
+  function setLargePrintOn(on) {
+    if (Storage && Storage.setPrefs) Storage.setPrefs({ largePrint: on });
+    applyLargePrintClass(on);
+  }
+
+  function createMoreGroup(className) {
+    const details = createElement('details', className || 'more-actions');
+    details.appendChild(createElement('summary', 'more-actions-summary', t('more')));
+    return details;
+  }
+
+  function createLargePrintToggle(options = {}) {
+    const wrap = createElement('label', options.className || 'large-print-toggle');
+    const input = createElement('input');
+    input.type = 'checkbox';
+    input.checked = isLargePrintOn();
+    if (options.id) input.id = options.id;
+    input.setAttribute('aria-describedby', options.hintId || '');
+    if (!options.hintId) input.removeAttribute('aria-describedby');
+    input.addEventListener('change', () => {
+      setLargePrintOn(input.checked);
+      if (options.onChange) options.onChange(input.checked);
+    });
+
+    if (options.tile) {
+      input.className = 'sr-only';
+      wrap.className = 'setup-tile-choice';
+      const face = createElement('span', 'setup-tile-choice-face');
+      face.appendChild(document.createTextNode('A'));
+      wrap.appendChild(input);
+      wrap.appendChild(face);
+      wrap.appendChild(document.createTextNode(t('largePrint')));
+      return wrap;
+    }
+
+    wrap.appendChild(input);
+    wrap.appendChild(document.createTextNode(t('largePrint')));
+    return wrap;
   }
 
   function playerNameAt(game, index, fallbackName) {
@@ -806,10 +856,10 @@
 
     const history = Array.isArray(game.history) ? game.history : [];
     const logEl = createElement('div', 'status-turn-log');
-    logEl.appendChild(createElement('h3', 'status-subheading', t('turnLog')));
+    const logInner = createElement('div', 'turn-log-inner');
 
     if (history.length === 0) {
-      logEl.appendChild(createElement('p', 'turn-log-empty', t('noMovesYet')));
+      logInner.appendChild(createElement('p', 'turn-log-empty', t('noMovesYet')));
     } else {
       const list = createElement('ol', 'turn-log-list');
       const start = Math.max(0, history.length - 40);
@@ -822,9 +872,9 @@
         item.textContent = formatHistoryLine(entry, game);
         list.appendChild(item);
       }
-      logEl.appendChild(list);
+      logInner.appendChild(list);
       if (start > 0) {
-        logEl.appendChild(
+        logInner.appendChild(
           createElement('p', 'turn-log-more', t('earlierTurns', { n: start }))
         );
       }
@@ -836,7 +886,17 @@
       replayBtn.dataset.focusId = 'replay';
       replayBtn.setAttribute('aria-haspopup', 'dialog');
       replayBtn.addEventListener('click', () => options.onReplay());
-      logEl.appendChild(replayBtn);
+      logInner.appendChild(replayBtn);
+    }
+
+    if (isLargePrintOn()) {
+      const details = createElement('details', 'turn-log-details');
+      details.appendChild(createElement('summary', 'more-actions-summary', t('turnLog')));
+      details.appendChild(logInner);
+      logEl.appendChild(details);
+    } else {
+      logEl.appendChild(createElement('h3', 'status-subheading', t('turnLog')));
+      logEl.appendChild(logInner);
     }
 
     container.appendChild(logEl);
@@ -885,7 +945,9 @@
     shuffleBtn.disabled = locked;
     shuffleBtn.setAttribute('aria-label', t('shuffleRack'));
     shuffleBtn.addEventListener('click', () => callbacks.onShuffle && callbacks.onShuffle());
-    actions.appendChild(shuffleBtn);
+    if (!isLargePrintOn()) {
+      actions.appendChild(shuffleBtn);
+    }
 
     if (!state.exchangeMode) {
       const exchangeBtn = createElement('button', 'btn', t('exchange'));
@@ -920,6 +982,12 @@
     }
 
     container.appendChild(actions);
+
+    if (isLargePrintOn()) {
+      const more = createMoreGroup('more-actions control-more');
+      more.appendChild(shuffleBtn);
+      container.appendChild(more);
+    }
 
     if (state.exchangeMode) {
       const exchangeSection = createElement('div', 'exchange-section');
@@ -1322,6 +1390,25 @@
       callbacks.onStart([p1, p2], { mode: 'human', language: currentLanguage() });
     });
 
+    const displayField = createElement('fieldset', 'setup-fieldset');
+    displayField.appendChild(createElement('legend', null, t('largePrint')));
+    const displayRow = createElement('div', 'setup-choice-row');
+    displayRow.appendChild(
+      createLargePrintToggle({
+        tile: true,
+        id: 'large-print-setup',
+        hintId: 'large-print-hint',
+        onChange: () => {
+          if (callbacks.onLargePrintChange) callbacks.onLargePrintChange();
+        },
+      })
+    );
+    displayField.appendChild(displayRow);
+    const displayHint = createElement('p', 'setup-computer-hint', t('largePrintHint'));
+    displayHint.id = 'large-print-hint';
+    displayField.appendChild(displayHint);
+    form.appendChild(displayField);
+
     const startBtn = createElement('button', 'btn btn-primary setup-start', t('startGame'));
     startBtn.type = 'submit';
     form.appendChild(startBtn);
@@ -1411,6 +1498,15 @@
 
     container.setAttribute('aria-label', t('saveActions'));
 
+    container.appendChild(
+      createLargePrintToggle({
+        id: 'large-print-play',
+        onChange: () => {
+          if (callbacks.onLargePrintChange) callbacks.onLargePrintChange();
+        },
+      })
+    );
+
     const statusText = callbacks.saveName
       ? callbacks.lastSavedAt
         ? t('savedAs', {
@@ -1462,7 +1558,13 @@
       actions.appendChild(statsBtn);
     }
 
-    container.appendChild(actions);
+    if (isLargePrintOn()) {
+      const more = createMoreGroup('more-actions save-more');
+      more.appendChild(actions);
+      container.appendChild(more);
+    } else {
+      container.appendChild(actions);
+    }
   }
 
   /**
@@ -1589,6 +1691,7 @@
 
     clearElement(root);
     root.classList.add('letterloom-app');
+    applyLargePrintClass(isLargePrintOn());
 
     /** @type {object|null} */
     let game = null;
@@ -3148,6 +3251,7 @@
         onExport: handleExport,
         onHelp: handleHelp,
         onStats: handleLocalStats,
+        onLargePrintChange: refresh,
       });
 
       persistState();
