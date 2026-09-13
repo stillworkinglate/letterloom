@@ -484,6 +484,29 @@
     const side = createElement('aside', 'setup-side');
     appendSetupBoardExcerpt(side);
     card.appendChild(side);
+
+    const footer = createElement('footer', 'setup-footer');
+    const github = createElement('a', 'setup-footer-github');
+    github.href = 'https://github.com/stillworkinglate/letterloom';
+    github.setAttribute('aria-label', t('sourceGithub'));
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('width', '18');
+    svg.setAttribute('height', '18');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('fill', 'currentColor');
+    path.setAttribute(
+      'd',
+      'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z'
+    );
+    svg.appendChild(path);
+    github.appendChild(svg);
+    footer.appendChild(createElement('p', 'setup-footer-credit', t('scrabbleCredit')));
+    footer.appendChild(github);
+    card.appendChild(footer);
+
     return { card, main, side };
   }
 
@@ -1317,29 +1340,27 @@
     coachField.appendChild(coachHint);
     computerFields.appendChild(coachField);
 
-    const seatField = createElement('div', 'form-field');
-    const seatLabel = createElement('label', null, t('computerPlaysAs'));
-    seatLabel.htmlFor = 'computer-seat';
-    seatField.appendChild(seatLabel);
-    const seatSelect = createElement('select', 'setup-input');
-    seatSelect.id = 'computer-seat';
-    seatSelect.name = 'computerSeat';
-    const seat2 = createElement('option', null, t('seatYouP1'));
-    seat2.value = '1';
-    seat2.selected = true;
-    const seat1 = createElement('option', null, t('seatYouP2'));
-    seat1.value = '0';
-    seatSelect.appendChild(seat2);
-    seatSelect.appendChild(seat1);
-    seatField.appendChild(seatSelect);
-    computerFields.appendChild(seatField);
-
-    const computerHint = createElement(
-      'p',
-      'setup-computer-hint',
-      t('computerHint')
-    );
-    computerFields.appendChild(computerHint);
+    const turnOrderField = createElement('fieldset', 'setup-fieldset');
+    turnOrderField.appendChild(createElement('legend', null, t('youGo')));
+    const turnOrderRow = createElement('div', 'setup-choice-row');
+    appendTileChoice(turnOrderRow, {
+      name: 'turn-order',
+      value: 'first',
+      label: t('goFirst'),
+      letter: '1',
+      points: '',
+      checked: true,
+    });
+    appendTileChoice(turnOrderRow, {
+      name: 'turn-order',
+      value: 'second',
+      label: t('goSecond'),
+      letter: '2',
+      points: '',
+      checked: false,
+    });
+    turnOrderField.appendChild(turnOrderRow);
+    computerFields.appendChild(turnOrderField);
     form.appendChild(computerFields);
 
     function syncModeFields() {
@@ -1350,7 +1371,9 @@
       input1.disabled = vsComputer;
       input2.disabled = vsComputer;
       humanNameInput.disabled = !vsComputer;
-      seatSelect.disabled = !vsComputer;
+      form.querySelectorAll('input[name="turn-order"]').forEach((radio) => {
+        radio.disabled = !vsComputer;
+      });
       coachCheck.disabled = !vsComputer;
     }
 
@@ -1363,15 +1386,16 @@
       e.preventDefault();
       const mode = (form.querySelector('input[name="game-mode"]:checked') || {}).value || 'human';
       if (mode === 'computer') {
+        const humanGoesFirst =
+          ((form.querySelector('input[name="turn-order"]:checked') || {}).value || 'first') !== 'second';
         const humanName = humanNameInput.value.trim() || t('playerN', { n: 1 });
-        const seat = Number(seatSelect.value) === 0 ? 0 : 1;
+        const cpuName = t('computerName');
         const difficulty =
           (form.querySelector('input[name="difficulty"]:checked') || {}).value || 'medium';
-        const cpuName = t('computerName');
-        const names = seat === 0 ? [cpuName, humanName] : [humanName, cpuName];
-        callbacks.onStart(names, {
+        callbacks.onStart([humanName, cpuName], {
           mode: 'computer',
-          computerSeat: seat,
+          computerSeat: 1,
+          firstPlayerIndex: humanGoesFirst ? 0 : 1,
           difficulty,
           coachMode: Boolean(coachCheck.checked),
           language: currentLanguage(),
@@ -1412,7 +1436,6 @@
       importInput.type = 'file';
       importInput.id = 'import-save-file';
       importInput.accept = '.json,application/json';
-      importInput.setAttribute('aria-describedby', 'import-save-hint');
       importInput.addEventListener('change', async () => {
         const file = importInput.files && importInput.files[0];
         importInput.value = '';
@@ -1425,23 +1448,7 @@
       });
       importLabel.appendChild(importInput);
       links.appendChild(importLabel);
-    } else {
-      links.appendChild(createElement('span'));
-    }
-
-    const github = createElement('a', null, t('sourceGithub'));
-    github.href = 'https://github.com/stillworkinglate/letterloom';
-    links.appendChild(github);
-    main.appendChild(links);
-
-    if (callbacks.onImport) {
-      const importHint = createElement(
-        'p',
-        'setup-import-hint',
-        t('importHint')
-      );
-      importHint.id = 'import-save-hint';
-      main.appendChild(importHint);
+      main.appendChild(links);
     }
 
     const helpBtn = createElement('button', 'setup-help-btn', t('howToPlay'));
@@ -3441,7 +3448,7 @@
           const importInput = setupEl.querySelector('#import-save-file');
           if (importInput) {
             importInput.setAttribute('aria-invalid', 'true');
-            importInput.setAttribute('aria-describedby', 'import-error import-save-hint');
+            importInput.setAttribute('aria-describedby', 'import-error');
           }
           announce(importError, true);
         }
