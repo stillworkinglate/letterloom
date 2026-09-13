@@ -5,9 +5,16 @@
  */
 
 html.large-print {
-  /* Beat later :root media queries in style.css / mobile.css. */
-  --cell-size: 48px !important;
+  --app-pad-x: 1rem;
+  --app-pad-y: 1rem;
+  /* Fill the window (the extra canvas) instead of a fixed 48px cell that
+     forces a nested board scrollbar. 15 columns always fit. */
+  --cell-size: min(
+    72px,
+    calc((100vw - 2 * var(--app-pad-x) - 16px - 14 * var(--board-gap)) / 15)
+  ) !important;
   --rack-tile-size: 56px !important;
+  --board-max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
   --ink: #14110e;
   --muted: #3d342c;
   --text-dark: #14110e;
@@ -30,14 +37,15 @@ html.large-print body {
 }
 
 html.large-print .letterloom-app {
-  max-width: 1280px;
+  max-width: none;
 }
 
 /* Drop the desktop “fit board + rack on one screen” lock so cells stay readable. */
 
 html.large-print body:not(.setup-active) {
   height: auto;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 html.large-print body:not(.setup-active) .letterloom-app {
@@ -51,7 +59,9 @@ html.large-print .app-game:not(.hidden) {
 }
 
 html.large-print .game-main {
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 html.large-print .board-area,
@@ -60,20 +70,55 @@ html.large-print .game-sidebar {
   max-height: none;
 }
 
+/* Steal the sidebar column so the 15×15 grid can grow with the window. */
+html.large-print .game-sidebar {
+  display: contents;
+}
+
+html.large-print .board-area {
+  order: 1;
+  width: 100%;
+  max-width: var(--board-max-width);
+}
+
+html.large-print .controls-panel {
+  order: 2;
+}
+
+html.large-print .score-preview {
+  order: 3;
+}
+
+html.large-print .status-panel {
+  order: 4;
+}
+
+html.large-print .save-panel {
+  order: 5;
+}
+
+html.large-print .controls-panel,
+html.large-print .score-preview,
+html.large-print .status-panel,
+html.large-print .save-panel {
+  width: 100%;
+  max-width: min(36rem, var(--board-max-width));
+}
+
 html.large-print .board-scroll {
   width: 100%;
   max-width: 100%;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overflow: hidden;
 }
 
 html.large-print .board-container {
   width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 html.large-print .board-cell {
-  font-size: clamp(1rem, calc(var(--cell-size) * 0.32), 1.2rem);
+  font-size: clamp(0.55rem, calc(var(--cell-size) * 0.32), 1.2rem);
   font-weight: 800;
   color: #1a1510;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
@@ -111,13 +156,13 @@ html.large-print .tile-face {
 }
 
 html.large-print .tile-letter {
-  font-size: clamp(1.35rem, calc(var(--cell-size) * 0.55), 1.85rem);
+  font-size: clamp(0.75rem, calc(var(--cell-size) * 0.55), 2.25rem);
   font-weight: 700;
   color: #14110e;
 }
 
 html.large-print .tile-small .tile-letter {
-  font-size: clamp(1.2rem, calc(var(--cell-size) * 0.5), 1.65rem);
+  font-size: clamp(0.7rem, calc(var(--cell-size) * 0.5), 2rem);
 }
 
 html.large-print .tile-points {
@@ -352,10 +397,6 @@ html.large-print .computer-think-banner {
 }
 
 @media (min-width: 1001px) {
-  html.large-print {
-    --cell-size: clamp(48px, 4.2vw, 64px) !important;
-  }
-
   html.large-print .control-actions,
   html.large-print .save-actions,
   html.large-print .exchange-section {
@@ -370,11 +411,14 @@ html.large-print .computer-think-banner {
     font-size: 1.15rem;
   }
 
-  html.large-print .game-sidebar {
-    width: min(380px, 100%);
-    display: flex;
+  html.large-print .game-main {
     flex-direction: column;
-    grid-template-rows: none;
+    align-items: center;
+  }
+
+  html.large-print .game-sidebar {
+    display: contents;
+    width: auto;
   }
 
   html.large-print .turn-log-list {
@@ -384,7 +428,6 @@ html.large-print .computer-think-banner {
 
 @media (max-width: 1000px) {
   html.large-print {
-    --cell-size: 48px !important;
     --rack-tile-size: 56px !important;
   }
 }

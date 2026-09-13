@@ -237,9 +237,9 @@
     help12:
       'Replay and local stats read the turn history already stored in this browser. No extra recording.',
     help13:
-      'Large print (setup or during a game) makes letters and buttons bigger and simpler. The board may scroll.',
+      'Large print (setup or during a game) makes letters and buttons bigger and simpler. The board uses the full window.',
     largePrint: 'Large print',
-    largePrintHint: 'Bigger letters and buttons. The board may scroll.',
+    largePrintHint: 'Bigger letters and buttons. The board uses the full window.',
     more: 'More',
     errOccupied: 'Square is already occupied.',
     errOutOfBounds: 'Placement out of bounds.',
@@ -495,9 +495,9 @@
     help12:
       'La repetición y las estadísticas locales leen el historial ya guardado en este navegador. No hay grabación extra.',
     help13:
-      'Letra grande (al empezar o durante la partida) agranda letras y botones y simplifica la pantalla. El tablero puede desplazarse.',
+      'Letra grande (al empezar o durante la partida) agranda letras y botones y simplifica la pantalla. El tablero usa toda la ventana.',
     largePrint: 'Letra grande',
-    largePrintHint: 'Letras y botones más grandes. El tablero puede desplazarse.',
+    largePrintHint: 'Letras y botones más grandes. El tablero usa toda la ventana.',
     more: 'Más',
     errOccupied: 'Esa casilla ya está ocupada.',
     errOutOfBounds: 'La colocación está fuera del tablero.',
