@@ -1384,12 +1384,14 @@
       callbacks.onStart([p1, p2], { mode: 'human', language: currentLanguage() });
     });
 
-    const displayField = createElement('fieldset', 'setup-fieldset');
-    displayField.appendChild(createElement('legend', null, t('largePrint')));
-    const displayRow = createElement('div', 'setup-choice-row');
-    displayRow.appendChild(
+    const startBtn = createElement('button', 'btn btn-primary setup-start', t('startGame'));
+    startBtn.type = 'submit';
+    form.appendChild(startBtn);
+    main.appendChild(form);
+
+    const display = createElement('div', 'setup-large-print');
+    display.appendChild(
       createLargePrintToggle({
-        tile: true,
         id: 'large-print-setup',
         hintId: 'large-print-hint',
         onChange: () => {
@@ -1397,17 +1399,10 @@
         },
       })
     );
-    displayField.appendChild(displayRow);
     const displayHint = createElement('p', 'setup-computer-hint', t('largePrintHint'));
     displayHint.id = 'large-print-hint';
-    displayField.appendChild(displayHint);
-    form.appendChild(displayField);
-
-    const startBtn = createElement('button', 'btn btn-primary setup-start', t('startGame'));
-    startBtn.type = 'submit';
-    form.appendChild(startBtn);
-
-    main.appendChild(form);
+    display.appendChild(displayHint);
+    main.appendChild(display);
 
     const links = createElement('div', 'setup-links');
     if (callbacks.onImport) {

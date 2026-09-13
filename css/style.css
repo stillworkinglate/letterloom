@@ -1692,6 +1692,20 @@ button,
   cursor: not-allowed;
 }
 
+.setup-large-print {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.setup-large-print .large-print-toggle {
+  margin-bottom: 0.25rem;
+}
+
+.setup-large-print .setup-computer-hint {
+  margin: 0;
+}
+
 .large-print-toggle {
   display: flex;
   align-items: center;
