@@ -983,12 +983,6 @@
 
     container.appendChild(actions);
 
-    if (isLargePrintOn()) {
-      const more = createMoreGroup('more-actions control-more');
-      more.appendChild(shuffleBtn);
-      container.appendChild(more);
-    }
-
     if (state.exchangeMode) {
       const exchangeSection = createElement('div', 'exchange-section');
       const confirmBtn = createElement('button', 'btn btn-warning', t('confirmExchange'));
@@ -1519,6 +1513,16 @@
     container.appendChild(createElement('p', 'save-status', statusText));
 
     const actions = createElement('div', 'save-actions');
+
+    if (isLargePrintOn() && callbacks.onShuffle) {
+      const shuffleBtn = createElement('button', 'btn', t('shuffle'));
+      shuffleBtn.type = 'button';
+      shuffleBtn.dataset.focusId = 'shuffle';
+      shuffleBtn.disabled = Boolean(callbacks.shuffleDisabled);
+      shuffleBtn.setAttribute('aria-label', t('shuffleRack'));
+      shuffleBtn.addEventListener('click', () => callbacks.onShuffle());
+      actions.appendChild(shuffleBtn);
+    }
 
     const saveBtn = createElement('button', 'btn btn-primary', t('save'));
     saveBtn.type = 'button';
@@ -3251,6 +3255,8 @@
         onExport: handleExport,
         onHelp: handleHelp,
         onStats: handleLocalStats,
+        onShuffle: shuffleRack,
+        shuffleDisabled: locked,
         onLargePrintChange: refresh,
       });
 
