@@ -1,0 +1,442 @@
+/* Letterloom — Large print (opt-in via html.large-print)
+ *
+ * Loaded after style.css and mobile.css. All rules are scoped so the
+ * default hearth theme is unchanged until the player turns this on.
+ */
+
+html.large-print {
+  --app-pad-x: 1rem;
+  --app-pad-y: 1rem;
+  /* Fill the window (the extra canvas) instead of a fixed 48px cell that
+     forces a nested board scrollbar. 15 columns always fit. */
+  --cell-size: min(
+    72px,
+    calc((100vw - 2 * var(--app-pad-x) - 16px - 14 * var(--board-gap)) / 15)
+  ) !important;
+  --rack-tile-size: 56px !important;
+  --board-max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
+  --ink: #14110e;
+  --muted: #3d342c;
+  --text-dark: #14110e;
+  --text-muted: #3d342c;
+  --tile: #fffdf6;
+  --tile-edge: #1a1510;
+  --tile-shadow: #1a1510;
+  --on-felt: #fff8e8;
+  --focus: #ffe566;
+  --tw: #8e2419;
+  --dw: #f4a6b8;
+  --tl: #145888;
+  --dl: #8ec4e6;
+}
+
+html.large-print body {
+  font-size: 1.125rem;
+  background-image: none;
+  color: var(--ink);
+}
+
+html.large-print .letterloom-app {
+  max-width: none;
+}
+
+/* Drop the desktop “fit board + rack on one screen” lock so cells stay readable. */
+
+html.large-print body:not(.setup-active) {
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html.large-print body:not(.setup-active) .letterloom-app {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+html.large-print .app-game:not(.hidden) {
+  flex: none;
+}
+
+html.large-print .game-main {
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+html.large-print .board-area,
+html.large-print .game-sidebar {
+  overflow: visible;
+  max-height: none;
+}
+
+/* Steal the sidebar column so the 15×15 grid can grow with the window. */
+html.large-print .game-sidebar {
+  display: contents;
+}
+
+html.large-print .board-area {
+  order: 1;
+  width: 100%;
+  max-width: var(--board-max-width);
+}
+
+html.large-print .controls-panel {
+  order: 2;
+}
+
+html.large-print .score-preview {
+  order: 3;
+}
+
+html.large-print .status-panel {
+  order: 4;
+}
+
+html.large-print .save-panel {
+  order: 5;
+}
+
+html.large-print .controls-panel,
+html.large-print .score-preview,
+html.large-print .status-panel,
+html.large-print .save-panel {
+  width: 100%;
+  max-width: min(36rem, var(--board-max-width));
+}
+
+html.large-print .board-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+html.large-print .board-container {
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+html.large-print .board-cell {
+  font-size: clamp(0.55rem, calc(var(--cell-size) * 0.32), 1.2rem);
+  font-weight: 800;
+  color: #1a1510;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+}
+
+html.large-print .premium-label {
+  font-size: inherit;
+  letter-spacing: 0;
+}
+
+html.large-print .board-cell.premium-tw {
+  color: #fff;
+}
+
+html.large-print .board-cell.premium-dw {
+  color: #4a1520;
+}
+
+html.large-print .board-cell.premium-tl {
+  color: #fff;
+}
+
+html.large-print .board-cell.premium-dl {
+  color: #0c3a58;
+}
+
+html.large-print .center-star {
+  font-size: clamp(1.1rem, calc(var(--cell-size) * 0.5), 1.6rem);
+}
+
+html.large-print .tile-face {
+  background: #fffdf6;
+  border: 2px solid #1a1510;
+  box-shadow: 0 2px 0 #1a1510;
+}
+
+html.large-print .tile-letter {
+  font-size: clamp(0.75rem, calc(var(--cell-size) * 0.55), 2.25rem);
+  font-weight: 700;
+  color: #14110e;
+}
+
+html.large-print .tile-small .tile-letter {
+  font-size: clamp(0.7rem, calc(var(--cell-size) * 0.5), 2rem);
+}
+
+html.large-print .tile-points {
+  font-size: clamp(0.75rem, calc(var(--cell-size) * 0.24), 0.95rem);
+  font-weight: 700;
+  color: #1a1510;
+  right: 3px;
+  bottom: 2px;
+}
+
+html.large-print .tile-face.tile-pending {
+  outline: 3px dashed var(--green-dark);
+  outline-offset: 1px;
+}
+
+html.large-print .rack-tile .tile-letter {
+  font-size: clamp(1.45rem, calc(var(--rack-tile-size) * 0.52), 1.85rem);
+}
+
+html.large-print .rack-tile .tile-points {
+  font-size: clamp(0.8rem, calc(var(--rack-tile-size) * 0.22), 0.95rem);
+}
+
+html.large-print .rack-slots {
+  gap: 8px;
+  padding: 10px 12px 8px;
+}
+
+html.large-print .rack-player-label,
+html.large-print .direction-hint-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+html.large-print .status-current-player,
+html.large-print .preview-total,
+html.large-print .app-dialog-title,
+html.large-print .game-over-title,
+html.large-print .turn-log-coach {
+  font-family: var(--font);
+  font-style: normal;
+}
+
+html.large-print .status-heading,
+html.large-print .status-subheading,
+html.large-print .preview-heading,
+html.large-print .setup-saves-title,
+html.large-print .setup-fieldset legend,
+html.large-print .setup-card .form-field label,
+html.large-print .setup-card .form-field > span,
+html.large-print .form-field label {
+  font-size: 1.05rem;
+}
+
+html.large-print .status-current-player,
+html.large-print .preview-total {
+  font-size: 1.65rem;
+}
+
+html.large-print .score-item,
+html.large-print .status-meta,
+html.large-print .status-turn-number,
+html.large-print .last-move-detail,
+html.large-print .turn-log-item,
+html.large-print .save-status,
+html.large-print .app-message,
+html.large-print .preview-empty,
+html.large-print .preview-error,
+html.large-print .preview-breakdown,
+html.large-print .preview-words,
+html.large-print .control-message,
+html.large-print .setup-tagline,
+html.large-print .setup-computer-hint,
+html.large-print .setup-import-hint,
+html.large-print .setup-links,
+html.large-print .setup-save-name,
+html.large-print .setup-save-status,
+html.large-print .setup-save-scores,
+html.large-print .setup-save-meta,
+html.large-print .app-dialog-message,
+html.large-print .help-list,
+html.large-print .unseen-intro,
+html.large-print .unseen-meta,
+html.large-print .replay-item,
+html.large-print .stats-list li,
+html.large-print .game-over-reason,
+html.large-print .game-over-winner {
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+html.large-print .cpu-badge {
+  font-size: 0.85rem;
+  padding: 0.15rem 0.4rem;
+}
+
+html.large-print .bag-count,
+html.large-print .bag-count-btn {
+  font-size: 1.125rem;
+  min-height: 52px;
+}
+
+html.large-print .btn,
+html.large-print .setup-help-btn,
+html.large-print .setup-start,
+html.large-print .btn-small {
+  min-height: 52px;
+  padding: 0.7rem 1rem;
+  font-size: 1.15rem;
+  border-width: 2px;
+}
+
+html.large-print .setup-tile-choice {
+  min-height: 52px;
+  font-size: 1.1rem;
+  padding: 10px 14px 10px 10px;
+}
+
+html.large-print .setup-tile-choice-face {
+  width: 36px;
+  height: 40px;
+  font-size: 1.15rem;
+}
+
+html.large-print .setup-tile-choice-face i {
+  font-size: 0.7rem;
+}
+
+html.large-print .setup-input,
+html.large-print input[type='text'],
+html.large-print input[type='number'],
+html.large-print input[type='search'],
+html.large-print select.setup-input {
+  font-size: 1.15rem;
+  min-height: 52px;
+  padding: 0.75rem 0.9rem;
+}
+
+html.large-print .setup-board-excerpt {
+  display: none;
+}
+
+html.large-print .setup-wordmark-tile {
+  max-width: 48px;
+  font-size: clamp(1rem, 2.6vw, 1.35rem);
+}
+
+html.large-print .setup-wordmark-tile i {
+  font-size: 0.7rem;
+}
+
+html.large-print .control-actions,
+html.large-print .exchange-section,
+html.large-print .save-actions,
+html.large-print .game-over-actions {
+  grid-template-columns: 1fr;
+}
+
+html.large-print .control-actions .btn-primary,
+html.large-print .control-actions .btn:last-child:nth-child(5),
+html.large-print .exchange-section .btn,
+html.large-print .exchange-section .btn-warning,
+html.large-print .exchange-section .btn:not(.btn-warning) {
+  grid-column: 1 / -1;
+}
+
+html.large-print .more-actions .btn,
+html.large-print .more-actions .save-actions .btn {
+  width: 100%;
+}
+
+html.large-print .more-actions-summary,
+html.large-print .large-print-toggle {
+  min-height: 52px;
+  font-size: 1.15rem;
+}
+
+html.large-print .large-print-toggle input {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+html.large-print .letter-picker {
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 0.5rem;
+}
+
+html.large-print .letter-picker .btn {
+  min-width: 52px;
+  min-height: 52px;
+  font-size: 1.25rem;
+}
+
+html.large-print .unseen-grid {
+  grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr));
+  gap: 0.5rem;
+}
+
+html.large-print .unseen-cell {
+  padding: 0.45rem 0.2rem 0.5rem;
+}
+
+html.large-print .unseen-face {
+  font-size: 1.25rem;
+}
+
+html.large-print .unseen-count {
+  font-size: 0.95rem;
+}
+
+html.large-print .app-dialog,
+html.large-print .game-over-card {
+  max-width: 40rem;
+}
+
+html.large-print .board-cell:focus-visible,
+html.large-print .rack-tile:focus-visible,
+html.large-print .btn:focus-visible,
+html.large-print .bag-count-btn:focus-visible,
+html.large-print .setup-help-btn:focus-visible,
+html.large-print .setup-tile-choice:has(input:focus-visible),
+html.large-print .skip-link:focus-visible,
+html.large-print .more-actions-summary:focus-visible,
+html.large-print .large-print-toggle:focus-within {
+  outline: 4px solid var(--focus);
+  outline-offset: 3px;
+}
+
+html.large-print .computer-think-banner {
+  font-size: 1.15rem;
+  padding: 0.7rem 0.9rem;
+}
+
+@media (min-width: 1001px) {
+  html.large-print .control-actions,
+  html.large-print .save-actions,
+  html.large-print .exchange-section {
+    grid-template-columns: 1fr;
+  }
+
+  html.large-print .control-actions .btn,
+  html.large-print .save-actions .btn,
+  html.large-print .exchange-section .btn {
+    min-height: 52px;
+    padding-block: 0.7rem;
+    font-size: 1.15rem;
+  }
+
+  html.large-print .game-main {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  html.large-print .game-sidebar {
+    display: contents;
+    width: auto;
+  }
+
+  html.large-print .turn-log-list {
+    max-height: 16rem;
+  }
+}
+
+@media (max-width: 1000px) {
+  html.large-print {
+    --rack-tile-size: 56px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  html.large-print {
+    --rack-tile-size: min(
+      56px,
+      calc((100vw - 2 * var(--app-pad-x, 0.5rem) - 16px - 24px) / 7)
+    ) !important;
+  }
+}

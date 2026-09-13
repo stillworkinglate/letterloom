@@ -8,6 +8,7 @@
   const GAME_KEY_PREFIX = 'scrabble-game-';
   const LEGACY_KEY = 'scrabble-save-v1';
   const STATS_KEY = 'letterloom-stats-v1';
+  const PREFS_KEY = 'letterloom-prefs-v1';
   const SAVE_VERSION = 1;
   const INDEX_VERSION = 2;
   const STATS_VERSION = 1;
@@ -465,10 +466,47 @@
     }
   }
 
+  function defaultPrefs() {
+    return { largePrint: false };
+  }
+
+  function getPrefs() {
+    try {
+      if (typeof localStorage === 'undefined') return defaultPrefs();
+      const raw = localStorage.getItem(PREFS_KEY);
+      if (!raw) return defaultPrefs();
+      const parsed = JSON.parse(raw);
+      if (!isObject(parsed)) return defaultPrefs();
+      return { largePrint: Boolean(parsed.largePrint) };
+    } catch (err) {
+      return defaultPrefs();
+    }
+  }
+
+  function setPrefs(partial) {
+    const current = getPrefs();
+    const next = {
+      largePrint: Boolean(
+        isObject(partial) && Object.prototype.hasOwnProperty.call(partial, 'largePrint')
+          ? partial.largePrint
+          : current.largePrint
+      ),
+    };
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+      }
+    } catch (err) {
+      /* ignore quota / private mode */
+    }
+    return next;
+  }
+
   const LetterloomStorage = {
     INDEX_KEY,
     GAME_KEY_PREFIX,
     STATS_KEY,
+    PREFS_KEY,
     SAVE_VERSION,
     STATS_VERSION,
     generateId,
@@ -488,6 +526,8 @@
     recordFinishedGame,
     collectFinishedSummaries,
     getLocalStats,
+    getPrefs,
+    setPrefs,
   };
 
   global.LetterloomStorage = LetterloomStorage;

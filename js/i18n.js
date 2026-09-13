@@ -236,6 +236,11 @@
       'Tap the tiles-remaining count to see unseen letters. After the game ends it shows every tile still off the board.',
     help12:
       'Replay and local stats read the turn history already stored in this browser. No extra recording.',
+    help13:
+      'Large print (setup or during a game) makes letters and buttons bigger and simpler. The board uses the full window.',
+    largePrint: 'Large print',
+    largePrintHint: 'Bigger letters and buttons. The board uses the full window.',
+    more: 'More',
     errOccupied: 'Square is already occupied.',
     errOutOfBounds: 'Placement out of bounds.',
     errDuplicateSquare: 'Duplicate placement on the same square.',
@@ -489,6 +494,11 @@
       'Toca el recuento de fichas para ver las letras no vistas. Al terminar muestra todas las que siguen fuera del tablero.',
     help12:
       'La repetición y las estadísticas locales leen el historial ya guardado en este navegador. No hay grabación extra.',
+    help13:
+      'Letra grande (al empezar o durante la partida) agranda letras y botones y simplifica la pantalla. El tablero usa toda la ventana.',
+    largePrint: 'Letra grande',
+    largePrintHint: 'Letras y botones más grandes. El tablero usa toda la ventana.',
+    more: 'Más',
     errOccupied: 'Esa casilla ya está ocupada.',
     errOutOfBounds: 'La colocación está fuera del tablero.',
     errDuplicateSquare: 'Hay dos fichas en la misma casilla.',

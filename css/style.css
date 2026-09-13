@@ -1692,6 +1692,78 @@ button,
   cursor: not-allowed;
 }
 
+.setup-large-print {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.setup-large-print .large-print-toggle {
+  margin-bottom: 0.25rem;
+}
+
+.setup-large-print .setup-computer-hint {
+  margin: 0;
+}
+
+.large-print-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.large-print-toggle input {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  accent-color: var(--green);
+}
+
+.more-actions {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--panel-border);
+}
+
+.more-actions-summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 700;
+  list-style-position: outside;
+}
+
+.more-actions-summary::-webkit-details-marker {
+  margin-right: 0.4rem;
+}
+
+.more-actions .btn {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+.more-actions .save-actions {
+  margin: 0;
+}
+
+.more-actions .save-actions .btn {
+  margin-top: 0;
+}
+
+.turn-log-details {
+  margin: 0;
+}
+
+.turn-log-details > .more-actions-summary {
+  margin-bottom: 0.35rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

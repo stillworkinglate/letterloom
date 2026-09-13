@@ -19,7 +19,7 @@ Open http://localhost:8080
 
 ## Play
 
-1. Choose **English** or **Español**, then enter two names, or choose **Play the computer** and a difficulty (or load a saved game). Closest tile to **A** goes first; blanks win the draw. Against the computer you can also start in **Coach mode**. The language picks the UI, the dictionary, and the tile bag (saved with the game).
+1. Choose **English** or **Español**, then enter two names, or choose **Play the computer** and a difficulty (or load a saved game). Closest tile to **A** goes first; blanks win the draw. Against the computer you can also start in **Coach mode**. The language picks the UI, the dictionary, and the tile bag (saved with the game). **Large print** (setup or during a game) makes letters and buttons bigger and simpler; the board uses the full window. The setting stays in this browser.
 2. Each turn: play a word, exchange tiles, or pass. The computer moves automatically. The sidebar keeps a turn log. **Take Back** undoes the last turn (and the computer’s reply); the bag is reshuffled. **Replay** opens the full history; **Local stats** reads finished games stored in this browser.
 3. Select a rack tile, place it on the board, then **Play Word**. Click a pending tile to take it back. In Coach mode, **Hint** drops the best available play onto the board, and the log notes that play after your turn.
 4. First word must cover the center ★. Later words must connect. All formed words (including crosses) must be in the dictionary.
@@ -67,11 +67,13 @@ TW  .   .  DL  .   .   .  TW  .   .   .  DL  .   .  TW
 
 Arrow keys move the focused board cell. Tab leaves the grid. Skip links jump to the rack or controls.
 
+**Large print** is a display setting only. It does not change saves, scoring, or the dictionary.
+
 ## Files
 
 ```
 index.html
-css/          style.css, mobile.css
+css/          style.css, mobile.css, large-print.css
 js/           engine.js, storage.js, ai.js, ai-worker.js, i18n.js, ui.js
 data/words.txt      ~178k English lexicon (ENABLE)
 data/words.es.txt   ~180k Spanish lexicon (RLA-ES, accent-folded, Ñ kept)
@@ -94,6 +96,7 @@ node tests/ai.test.js
 node tests/history-coach.test.js
 node tests/unseen-stats.test.js
 node tests/language.test.js
+node tests/prefs.test.js
 ```
 
 ## License
