@@ -353,15 +353,9 @@ button,
   width: 100%;
 }
 
-.setup-import-hint {
-  margin: 0.5rem 0 0;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
 .setup-links {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: baseline;
   gap: 1rem;
   margin-top: 1rem;
@@ -381,6 +375,48 @@ button,
 .setup-import-link:hover {
   color: var(--green);
   text-decoration-color: var(--green);
+}
+
+.setup-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 1.4rem;
+  background: var(--card-deep);
+  border-top: 1px solid var(--rule);
+}
+
+.setup-footer-credit {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.setup-footer-github {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 7px;
+  color: var(--muted);
+  line-height: 0;
+  text-decoration: none;
+}
+
+.setup-footer-github:hover {
+  color: var(--green);
+}
+
+.setup-footer-github svg {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .setup-form {
@@ -1459,6 +1495,7 @@ button,
 .setup-help-btn:focus-visible,
 .setup-import-btn:focus-visible,
 .setup-import-link:focus-visible,
+.setup-footer-github:focus-visible,
 .skip-link:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -2008,5 +2045,9 @@ button,
 
   .setup-human-fields {
     grid-template-columns: 1fr;
+  }
+
+  .setup-footer {
+    padding: 0.55rem 1.1rem;
   }
 }
