@@ -1,7 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#1a4a33"/>
-  <rect x="116" y="124" width="280" height="280" rx="22" fill="#8a6a2f"/>
-  <rect x="116" y="108" width="280" height="280" rx="22" fill="#f7ebcf" stroke="#c9a76a" stroke-width="6"/>
-  <text x="246" y="320" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="700" font-size="210" fill="#27201a">L</text>
-  <text x="352" y="362" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="700" font-size="56" fill="#27201a">1</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#10301f"/>
+<rect x="76" y="76" width="112" height="112" rx="6" fill="#ead9a6"/>
+<rect x="200" y="76" width="112" height="112" rx="6" fill="#c0a66d"/>
+<rect x="324" y="76" width="112" height="112" rx="6" fill="#ead9a6"/>
+<rect x="76" y="200" width="112" height="112" rx="6" fill="#c0a66d"/>
+<rect x="200" y="200" width="112" height="112" rx="6" fill="#1a6fa8"/>
+<rect x="324" y="200" width="112" height="112" rx="6" fill="#c0a66d"/>
+<rect x="76" y="324" width="112" height="112" rx="6" fill="#ead9a6"/>
+<rect x="200" y="324" width="112" height="112" rx="6" fill="#c0a66d"/>
+<rect x="324" y="324" width="112" height="112" rx="6" fill="#f4a6b8"/>
+<rect x="76" y="84" width="112" height="112" rx="9" fill="#8a6a2f"/>
+<rect x="76" y="76" width="112" height="112" rx="9" fill="#f7ebcf" stroke="#c9a76a" stroke-width="3"/>
+<text x="127" y="156" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="71" fill="#27201a">L</text>
+<text x="167" y="174" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="22" fill="#27201a">1</text>
+<rect x="200" y="84" width="112" height="112" rx="9" fill="#8a6a2f"/>
+<rect x="200" y="76" width="112" height="112" rx="9" fill="#f7ebcf" stroke="#c9a76a" stroke-width="3"/>
+<text x="251" y="156" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="71" fill="#27201a">O</text>
+<text x="291" y="174" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="22" fill="#27201a">1</text>
+<rect x="324" y="84" width="112" height="112" rx="9" fill="#8a6a2f"/>
+<rect x="324" y="76" width="112" height="112" rx="9" fill="#f7ebcf" stroke="#c9a76a" stroke-width="3"/>
+<text x="375" y="156" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="71" fill="#27201a">O</text>
+<text x="415" y="174" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="22" fill="#27201a">1</text>
+<rect x="76" y="208" width="112" height="112" rx="9" fill="#8a6a2f"/>
+<rect x="76" y="200" width="112" height="112" rx="9" fill="#f7ebcf" stroke="#c9a76a" stroke-width="3"/>
+<text x="127" y="280" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="71" fill="#27201a">A</text>
+<text x="167" y="298" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="22" fill="#27201a">1</text>
+<rect x="76" y="332" width="112" height="112" rx="9" fill="#8a6a2f"/>
+<rect x="76" y="324" width="112" height="112" rx="9" fill="#f7ebcf" stroke="#c9a76a" stroke-width="3"/>
+<text x="127" y="404" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="71" fill="#27201a">T</text>
+<text x="167" y="422" text-anchor="middle" font-family="Archivo" font-weight="700" font-size="22" fill="#27201a">1</text>
 </svg>
