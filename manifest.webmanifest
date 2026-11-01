@@ -1,0 +1,17 @@
+{
+  "name": "Letterloom",
+  "short_name": "Letterloom",
+  "description": "Two-player crossword tiles on a 15×15 board. Same screen, take turns — or play the computer. Works offline.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#10301f",
+  "theme_color": "#10301f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

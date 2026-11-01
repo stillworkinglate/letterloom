@@ -396,6 +396,48 @@ button,
   color: var(--muted);
 }
 
+.setup-footer-offline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem 0.75rem;
+  margin-left: auto;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.setup-footer-offline:empty {
+  display: none;
+}
+
+.setup-offline-note {
+  white-space: nowrap;
+}
+
+.setup-offline-note.is-ready::before {
+  content: '✓ ';
+  color: var(--green);
+  font-weight: 700;
+}
+
+.setup-offline-install {
+  min-height: 32px;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  background: var(--green);
+  color: var(--on-felt);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.setup-offline-install:hover {
+  background: var(--green-dark);
+}
+
 .setup-footer-github {
   flex-shrink: 0;
   display: inline-flex;
@@ -1496,6 +1538,7 @@ button,
 .setup-import-btn:focus-visible,
 .setup-import-link:focus-visible,
 .setup-footer-github:focus-visible,
+.setup-offline-install:focus-visible,
 .skip-link:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;

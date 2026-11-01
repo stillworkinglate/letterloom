@@ -504,10 +504,45 @@
     svg.appendChild(path);
     github.appendChild(svg);
     footer.appendChild(createElement('p', 'setup-footer-credit', t('scrabbleCredit')));
+    const offline = createElement('div', 'setup-footer-offline');
+    offline.setAttribute('role', 'status');
+    renderOfflineStatus(offline);
+    footer.appendChild(offline);
     footer.appendChild(github);
     card.appendChild(footer);
 
     return { card, main, side };
+  }
+
+  function renderOfflineStatus(el) {
+    const Offline = global.LetterloomOffline;
+    clearElement(el);
+    if (!Offline) return;
+    const state = Offline.getState();
+    if (!state.supported) return;
+    el.appendChild(
+      createElement(
+        'span',
+        state.ready ? 'setup-offline-note is-ready' : 'setup-offline-note',
+        t(state.ready ? 'offlineReady' : 'offlineSaving')
+      )
+    );
+    if (state.standalone) return;
+    if (state.installable) {
+      const button = createElement('button', 'setup-offline-install', t('offlineInstall'));
+      button.type = 'button';
+      button.addEventListener('click', () => Offline.promptInstall());
+      el.appendChild(button);
+    } else if (state.ios && state.ready) {
+      el.appendChild(createElement('span', 'setup-offline-hint', t('offlineIosHint')));
+    }
+  }
+
+  if (global.addEventListener && global.document) {
+    global.addEventListener('letterloom-offline', () => {
+      const nodes = global.document.querySelectorAll('.setup-footer-offline');
+      for (let i = 0; i < nodes.length; i += 1) renderOfflineStatus(nodes[i]);
+    });
   }
 
   function appendTileChoice(row, spec) {
