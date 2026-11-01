@@ -17,6 +17,17 @@ python3 -m http.server 8080
 
 Open http://localhost:8080
 
+## Offline / install on a phone
+
+Open the game once with a connection. It stores everything it needs on the device: code, fonts, and both dictionaries (about 3.5 MB). The setup screen footer shows **Works offline** when that is done. From then on it plays with no network, against a friend or the computer, in English or Spanish. Saves stay in the browser as before.
+
+To get a home-screen icon that opens full screen:
+
+- **Android (Chrome, Edge, Samsung Internet):** tap **Install app** in the footer, or browser menu → **Install app** / **Add to Home screen**.
+- **iPhone / iPad (Safari):** Share → **Add to Home Screen**.
+
+A new version downloads in the background the next time the game opens online, and takes effect on the following launch. The deploy workflow stamps `sw.js` with a hash of the shipped files so installed copies pick up every change. When you add a file the game loads, list it in `PRECACHE` in `sw.js`; `tests/offline.test.js` fails if you forget.
+
 ## Play
 
 1. Choose **English** or **Español**, then enter two names, or choose **Play the computer** and a difficulty (or load a saved game). Closest tile to **A** goes first; blanks win the draw. Against the computer you can also start in **Coach mode**. The language picks the UI, the dictionary, and the tile bag (saved with the game). **Large print** (setup or during a game) makes letters and buttons bigger and simpler; the board uses the full window. The setting stays in this browser.
@@ -73,8 +84,11 @@ Arrow keys move the focused board cell. Tab leaves the grid. Skip links jump to 
 
 ```
 index.html
-css/          style.css, mobile.css, large-print.css
-js/           engine.js, storage.js, ai.js, ai-worker.js, i18n.js, ui.js
+manifest.webmanifest, sw.js   install metadata + offline service worker
+css/          style.css, mobile.css, large-print.css, fonts.css
+js/           engine.js, storage.js, ai.js, ai-worker.js, i18n.js, ui.js, offline.js
+fonts/        Archivo + Newsreader (OFL), self-hosted for offline use
+icons/        app icons
 data/words.txt      ~178k English lexicon (ENABLE)
 data/words.es.txt   ~180k Spanish lexicon (RLA-ES, accent-folded, Ñ kept)
 tests/        node tests for the engine, computer opponent, and language pack
@@ -97,10 +111,11 @@ node tests/history-coach.test.js
 node tests/unseen-stats.test.js
 node tests/language.test.js
 node tests/prefs.test.js
+node tests/offline.test.js
 ```
 
 ## License
 
-MIT for the code. Keep `data/words.txt` as a free lexicon (e.g. ENABLE). `data/words.es.txt` is derived from [RLA-ES](https://github.com/sbosio/rla-es) and is LGPL-3.0-or-later / GPL-3.0-or-later / MPL-1.1-or-later; see `data/WORDS-ES-LICENSE.md`. Do not ship NASPA, Collins, or FISE word lists, and do not present this as Scrabble.
+MIT for the code. Keep `data/words.txt` as a free lexicon (e.g. ENABLE). `data/words.es.txt` is derived from [RLA-ES](https://github.com/sbosio/rla-es) and is LGPL-3.0-or-later / GPL-3.0-or-later / MPL-1.1-or-later; see `data/WORDS-ES-LICENSE.md`. The fonts in `fonts/` are under the SIL Open Font License 1.1; see `fonts/OFL.md`. Do not ship NASPA, Collins, or FISE word lists, and do not present this as Scrabble.
 
 Spanish play uses a 100-tile house bag: **Ñ** is a letter, accents are ignored (`CAFÉ` → `CAFE`), and **CH / LL / RR** are two tiles. There are no K or W tiles. This is not an official tournament set.

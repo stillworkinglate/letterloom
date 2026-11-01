@@ -24,6 +24,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Stamp offline cache version
+        # Installed copies update only when sw.js changes, so tie its cache
+        # name to the content of everything it stores.
+        run: |
+          node tests/offline.test.js
+          HASH=$(cat index.html manifest.webmanifest css/*.css js/*.js data/*.txt fonts/*.woff2 icons/* | sha256sum | cut -c1-12)
+          sed -i "s/^const CACHE_VERSION = .*/const CACHE_VERSION = '$HASH';/" sw.js
+          grep -n "^const CACHE_VERSION" sw.js
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
