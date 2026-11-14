@@ -217,7 +217,7 @@
       grid.appendChild(cell);
     });
 
-    const blank = createElement('div', 'unseen-cell unseen-blank');
+    const blank = createElement('div', 'unseen-cell');
     blank.setAttribute('role', 'listitem');
     if (!unseen.blanks) blank.classList.add('unseen-gone');
     blank.setAttribute('aria-label', t('blanksRemaining', { n: unseen.blanks }));
@@ -652,11 +652,10 @@
   }
 
   function renderTileFace(tile, options = {}) {
-    const { pending = false, small = false, selected = false } = options;
+    const { pending = false, small = false } = options;
     const face = createElement('div', 'tile-face');
     if (pending) face.classList.add('tile-pending');
     if (small) face.classList.add('tile-small');
-    if (selected) face.classList.add('tile-selected');
 
     const letter = formatTileLetter(tile);
     const letterEl = createElement('span', 'tile-letter', letter || (tile.isBlank ? '?' : ''));
@@ -808,7 +807,7 @@
         if (isSelected) btn.classList.add('selected');
         if (options.exchangeMode) btn.classList.add('exchange-mode');
 
-        btn.appendChild(renderTileFace(tile, { selected: isSelected }));
+        btn.appendChild(renderTileFace(tile));
 
         if (options.onTileClick && !options.locked) {
           btn.addEventListener('click', () => options.onTileClick(tile.id));
@@ -1723,7 +1722,7 @@
   /**
    * Mount full interactive app into root element.
    * @param {HTMLElement} root
-   * @param {{ dictionary?: Set<string>|null, dictionaryUrl?: string }} [options]
+   * @param {{ dictionary?: Set<string>|null, dictionaryUrls?: { en?: string, es?: string } }} [options]
    */
   function mount(root, options = {}) {
     if (!Engine) {
@@ -1753,7 +1752,6 @@
       { en: 'data/words.txt', es: 'data/words.es.txt' },
       options.dictionaryUrls || {}
     );
-    if (options.dictionaryUrl) dictionaryUrls.en = options.dictionaryUrl;
 
     function parseWordList(text) {
       return new Set(
@@ -3498,23 +3496,5 @@
     };
   }
 
-  const LetterloomUI = {
-    renderBoard,
-    renderRack,
-    renderStatus,
-    renderControls,
-    renderDirectionHint,
-    inferPlacementDirection,
-    renderScorePreview,
-    renderSetup,
-    renderSavePanel,
-    renderGameOver,
-    renderUnseenGrid,
-    renderReplayLog,
-    renderLocalStats,
-    formatReplayLine,
-    mount,
-  };
-
-  global.LetterloomUI = LetterloomUI;
+  global.LetterloomUI = { mount };
 })(typeof window !== 'undefined' ? window : globalThis);

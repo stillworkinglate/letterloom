@@ -7,17 +7,16 @@
 html.large-print {
   --app-pad-x: 1rem;
   --app-pad-y: 1rem;
-  /* Fill the window (the extra canvas) instead of a fixed 48px cell that
-     forces a nested board scrollbar. 15 columns always fit. */
+  /* Fill the available width instead of a fixed cell size that would force
+     a nested board scrollbar. 15 columns always fit. */
   --cell-size: min(
     72px,
-    calc((100vw - 2 * var(--app-pad-x) - 16px - 14 * var(--board-gap)) / 15)
+    calc((100cqi - 2 * var(--board-pad) - 14 * var(--board-gap)) / 15)
   ) !important;
-  --rack-tile-size: 56px !important;
-  --board-max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
+  /* Seven tiles across: container minus rack padding (24px) and gaps (48px). */
+  --rack-tile-size: min(56px, calc((100cqi - 24px - 48px) / 7)) !important;
   --ink: #14110e;
   --muted: #3d342c;
-  --text-dark: #14110e;
   --text-muted: #3d342c;
   --tile: #fffdf6;
   --tile-edge: #1a1510;
@@ -78,7 +77,7 @@ html.large-print .game-sidebar {
 html.large-print .board-area {
   order: 1;
   width: 100%;
-  max-width: var(--board-max-width);
+  max-width: var(--board-width);
 }
 
 html.large-print .controls-panel {
@@ -102,7 +101,7 @@ html.large-print .score-preview,
 html.large-print .status-panel,
 html.large-print .save-panel {
   width: 100%;
-  max-width: min(36rem, var(--board-max-width));
+  max-width: min(36rem, var(--board-width));
 }
 
 html.large-print .board-scroll {
@@ -197,7 +196,6 @@ html.large-print .direction-hint-text {
   font-weight: 600;
 }
 
-html.large-print .status-current-player,
 html.large-print .preview-total,
 html.large-print .app-dialog-title,
 html.large-print .game-over-title,
@@ -206,9 +204,7 @@ html.large-print .turn-log-coach {
   font-style: normal;
 }
 
-html.large-print .status-heading,
 html.large-print .status-subheading,
-html.large-print .preview-heading,
 html.large-print .setup-saves-title,
 html.large-print .setup-fieldset legend,
 html.large-print .setup-card .form-field label,
@@ -217,26 +213,21 @@ html.large-print .form-field label {
   font-size: 1.05rem;
 }
 
-html.large-print .status-current-player,
 html.large-print .preview-total {
   font-size: 1.65rem;
 }
 
 html.large-print .score-item,
 html.large-print .status-meta,
-html.large-print .status-turn-number,
-html.large-print .last-move-detail,
 html.large-print .turn-log-item,
 html.large-print .save-status,
 html.large-print .app-message,
 html.large-print .preview-empty,
 html.large-print .preview-error,
 html.large-print .preview-breakdown,
-html.large-print .preview-words,
 html.large-print .control-message,
 html.large-print .setup-tagline,
 html.large-print .setup-computer-hint,
-html.large-print .setup-import-hint,
 html.large-print .setup-links,
 html.large-print .setup-save-name,
 html.large-print .setup-save-status,
@@ -259,7 +250,6 @@ html.large-print .cpu-badge {
   padding: 0.15rem 0.4rem;
 }
 
-html.large-print .bag-count,
 html.large-print .bag-count-btn {
   font-size: 1.125rem;
   min-height: 52px;
@@ -423,20 +413,5 @@ html.large-print .computer-think-banner {
 
   html.large-print .turn-log-list {
     max-height: 16rem;
-  }
-}
-
-@media (max-width: 1000px) {
-  html.large-print {
-    --rack-tile-size: 56px !important;
-  }
-}
-
-@media (max-width: 380px) {
-  html.large-print {
-    --rack-tile-size: min(
-      56px,
-      calc((100vw - 2 * var(--app-pad-x, 0.5rem) - 16px - 24px) / 7)
-    ) !important;
   }
 }

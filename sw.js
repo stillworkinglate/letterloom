@@ -2,8 +2,9 @@
  * Letterloom service worker — keeps the whole game (code, fonts, both
  * dictionaries) on the device so it plays with no network.
  *
- * Bump CACHE_VERSION whenever a file in PRECACHE changes; tests/offline.test.js
- * checks that every shipped file is listed here.
+ * The deploy workflow replaces CACHE_VERSION with a hash of the shipped files,
+ * so installed copies update whenever any of them changes. tests/offline.test.js
+ * checks that every shipped file is listed in PRECACHE.
  */
 /* eslint-disable no-restricted-globals */
 const CACHE_VERSION = 'v1';

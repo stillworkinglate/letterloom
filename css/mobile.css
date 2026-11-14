@@ -1,11 +1,12 @@
-/* Letterloom — mobile layout (load after style.css)
+/* Letterloom — phone and tablet layout (load after style.css)
  *
  * ≤1000px stacked play, fluid cells
- * ≤560px  sticky rack, denser chrome
+ * ≤640px  single-column setup card
+ * ≤560px  sticky rack, tighter board, denser chrome
  * ≤380px  very narrow phones
  *
- * Cell width ≈ (100vw − app padding − board padding − gaps) / 15,
- * clamped 24–36px.
+ * Cell width = (.game-main width − board padding − gaps) / 15, clamped
+ * 18–36px, so all 15 columns fit without sideways scrolling down to 320px.
  */
 
 /* ≤1000px — stacked layout */
@@ -14,11 +15,9 @@
   :root {
     --app-pad-x: 1rem;
     --app-pad-y: 1rem;
-    --board-max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
-    /* Fluid board: fit phone/tablet width without horizontal page overflow */
     --cell-size: clamp(
-      24px,
-      calc((100vw - 2 * var(--app-pad-x) - 16px - 14 * var(--board-gap)) / 15),
+      18px,
+      calc((100cqi - 2 * var(--board-pad) - 14 * var(--board-gap)) / 15),
       36px
     );
     /* Larger than board cells, but not stretched to the 15-wide grid. */
@@ -41,8 +40,9 @@
   }
 
   .board-area {
+    order: 1;
     width: 100%;
-    max-width: var(--board-max-width);
+    max-width: var(--board-width);
     gap: 0.65rem;
   }
 
@@ -52,10 +52,6 @@
    */
   .game-sidebar {
     display: contents;
-  }
-
-  .board-area {
-    order: 1;
   }
 
   .controls-panel {
@@ -79,19 +75,18 @@
   .controls-panel,
   .save-panel {
     width: 100%;
-    max-width: var(--board-max-width);
+    max-width: var(--board-width);
     padding: 0.85rem;
   }
 
   /*
-   * Prefer fitting the board via fluid --cell-size. If a device is still too
-   * narrow, only .board-scroll (wrapper around the grid) may horizontal-scroll.
+   * The fluid --cell-size fits the board down to 320px. Below that, only
+   * .board-scroll (the wrapper around the grid) may scroll sideways.
    */
   .board-scroll {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
   }
 
@@ -101,35 +96,9 @@
     width: max-content;
   }
 
-  /* Scale premium labels & tile glyphs with cell size */
-  .board-cell {
-    font-size: clamp(0.55rem, calc(var(--cell-size) * 0.28), 0.7rem);
-  }
-
-  .premium-label {
-    font-size: inherit;
-  }
-
-  .center-star {
-    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
-  }
-
-  .tile-letter {
-    font-size: clamp(0.7rem, calc(var(--cell-size) * 0.5), 1.15rem);
-  }
-
-  .tile-small .tile-letter {
-    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
-  }
-
   .tile-points {
-    font-size: clamp(0.5rem, calc(var(--cell-size) * 0.22), 0.65rem);
     right: 2px;
     bottom: 1px;
-  }
-
-  .tile-face {
-    border-radius: 3px;
   }
 
   .letterloom-rack {
@@ -159,24 +128,9 @@
     font-size: clamp(1rem, calc(var(--rack-tile-size) * 0.52), 1.35rem);
   }
 
-  /* Controls: 2-col grid from style.css; keep primary spanning full width */
-  .control-actions,
-  .exchange-section,
-  .save-actions {
-    gap: 0.45rem;
-  }
-
   /* Setup — slightly tighter type on stacked layouts */
   .setup-tagline {
     font-size: 1.05rem;
-  }
-
-  .status-heading {
-    font-size: 0.85rem;
-  }
-
-  .status-current-player {
-    font-size: 1.25rem;
   }
 
   .preview-total {
@@ -184,7 +138,6 @@
   }
 
   /* Avoid iOS focus zoom on inputs (16px minimum) */
-  .setup-input,
   input[type='text'],
   input[type='number'],
   input[type='search'] {
@@ -219,20 +172,48 @@
   }
 }
 
+/* ≤640px — single-column setup card */
+
+@media (max-width: 640px) {
+  .setup-card {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-main {
+    padding: 1.8rem 1.4rem;
+  }
+
+  .setup-side {
+    border-left: none;
+    border-top: 1px solid var(--rule);
+    padding: 1.6rem 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .setup-help-btn {
+    width: 100%;
+  }
+
+  .setup-human-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-footer {
+    padding: 0.55rem 1.1rem;
+  }
+}
+
 /* ≤560px — phones */
 
 @media (max-width: 560px) {
   :root {
     --app-pad-x: 0.65rem;
     --app-pad-y: 0.65rem;
-    --rack-tile-size: 42px;
-  }
-
-  .letterloom-app {
-    padding-top: max(0.65rem, env(safe-area-inset-top, 0px));
-    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
-    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
-    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    /* Thinner frame and gaps leave more of the width for the cells. */
+    --board-gap: 1px;
+    --board-pad: 4px;
   }
 
   .game-main {
@@ -264,18 +245,12 @@
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  .rack-slots {
-    gap: 6px;
-    padding: 7px 8px;
-  }
-
   .rack-player-label {
     margin-top: 0.35rem;
     margin-bottom: 0.15rem;
     font-size: 0.8rem;
   }
 
-  /* Touch density: style.css already sets ~44px buttons and a 2-col grid */
   .control-actions .btn,
   .exchange-section .btn,
   .save-actions .btn {
@@ -340,8 +315,6 @@
 
   /* Compact status chrome */
   .status-scores,
-  .status-bag,
-  .status-last-move,
   .status-turn-log {
     margin-top: 0.75rem;
     padding-top: 0.75rem;
@@ -419,10 +392,8 @@
   :root {
     --app-pad-x: 0.5rem;
     --app-pad-y: 0.5rem;
-    --rack-tile-size: min(
-      40px,
-      calc((100vw - 2 * var(--app-pad-x) - 16px - 30px) / 7)
-    );
+    /* Seven tiles across: container minus rack padding (16px) and gaps (24px). */
+    --rack-tile-size: min(40px, calc((100cqi - 16px - 24px) / 7));
   }
 
   .setup-main {
@@ -441,7 +412,6 @@
 
   .rack-slots {
     gap: 4px;
-    padding: 7px 8px;
   }
 
   .control-actions .btn,

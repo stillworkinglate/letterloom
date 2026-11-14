@@ -7,25 +7,22 @@
 }
 
 :root {
-  --board-bg: var(--felt);
   --board-cell: #ead9a6;
   --board-cell-alt: #c0a66d;
   --board-gap: 2px;
+  --board-pad: 8px;
   --cell-size: 36px;
   --rack-tile-size: var(--cell-size);
+  /* Outer width of the 15×15 grid; the rack and panels align to it. */
+  --board-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 2 * var(--board-pad));
   --tw: #c0392b;
   --dw: #f4a6b8;
   --tl: #1a6fa8;
   --dl: #a8d4f0;
-  --tile-bg: var(--tile);
-  --tile-border: var(--tile-edge);
   --tile-shadow: #8a6a2f;
-  --text-dark: var(--ink);
   --text-muted: var(--muted);
-  --sidebar-bg: var(--card);
   --panel-border: var(--rule);
   --accent: var(--green);
-  --accent-hover: var(--green-dark);
   --warning: #d35400;
   --warning-text: #8a3600;
   --error: #c0392b;
@@ -65,7 +62,6 @@ body {
     rgba(255, 255, 255, 0.025) 0 2px,
     transparent 2px 6px
   );
-  min-height: 100vh;
   min-height: 100dvh;
 }
 
@@ -344,8 +340,7 @@ button,
   overflow: hidden;
 }
 
-.setup-import-input,
-.save-import-input {
+.setup-import-input {
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -717,7 +712,9 @@ button,
 
 /* Game layout */
 
+/* Size container: --cell-size is derived from this element's width (cqi). */
 .game-main {
+  container-type: inline-size;
   display: flex;
   gap: 1.5rem;
   align-items: flex-start;
@@ -743,7 +740,7 @@ button,
 /* Board */
 
 .board-container {
-  padding: 8px;
+  padding: var(--board-pad);
   background: var(--felt);
   border-radius: 2px;
 }
@@ -772,7 +769,7 @@ button,
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: clamp(0.55rem, calc(var(--cell-size) * 0.28), 0.85rem);
   font-weight: 700;
   color: rgba(0, 0, 0, 0.5);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
@@ -821,7 +818,7 @@ button,
 
 .center-star {
   position: absolute;
-  font-size: 1rem;
+  font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1.35rem);
   color: var(--star);
   pointer-events: none;
 }
@@ -862,21 +859,21 @@ button,
 }
 
 .tile-letter {
-  font-size: 1.15rem;
+  font-size: clamp(0.7rem, calc(var(--cell-size) * 0.5), 1.5rem);
   font-weight: 700;
   line-height: 1;
   text-transform: uppercase;
 }
 
 .tile-small .tile-letter {
-  font-size: 1rem;
+  font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1.35rem);
 }
 
 .tile-points {
   position: absolute;
   right: 3px;
   bottom: 2px;
-  font-size: 0.65rem;
+  font-size: clamp(0.5rem, calc(var(--cell-size) * 0.22), 0.7rem);
   font-weight: 600;
   line-height: 1;
   color: var(--muted);
@@ -886,7 +883,7 @@ button,
 
 .letterloom-rack {
   width: 100%;
-  max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
+  max-width: var(--board-width);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -990,13 +987,6 @@ button,
   color: var(--ink);
 }
 
-.status-heading {
-  margin: 0 0 0.25rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--ink);
-}
-
 .status-subheading {
   margin: 0 0 0.5rem;
   font-size: 0.85rem;
@@ -1004,18 +994,9 @@ button,
   color: var(--ink);
 }
 
-.status-current-player {
-  margin: 0;
-  font-family: var(--display);
-  font-style: italic;
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--green);
-}
-
 .computer-think-banner {
   width: 100%;
-  max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
+  max-width: var(--board-width);
   padding: 0.55rem 0.75rem;
   background: var(--card);
   border: 1px solid var(--card-deep);
@@ -1085,12 +1066,6 @@ button,
   opacity: 1;
 }
 
-.status-turn-number {
-  margin: 0.25rem 0 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
 .status-meta {
   margin: 0.45rem 0 0;
   font-size: 0.8rem;
@@ -1099,8 +1074,6 @@ button,
 }
 
 .status-scores,
-.status-bag,
-.status-last-move,
 .status-turn-log {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -1131,14 +1104,6 @@ button,
   color: var(--green);
 }
 
-.score-breakdown {
-  margin: 0.5rem 0 0;
-  padding-left: 1.25rem;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.bag-count,
 .bag-count-btn {
   margin: 0;
   padding: 0.35rem 0;
@@ -1176,11 +1141,6 @@ button,
 .turn-log-replay {
   margin-top: 0.65rem;
   width: 100%;
-}
-
-.last-move-detail {
-  margin: 0;
-  font-size: 0.9rem;
 }
 
 .turn-log-list {
@@ -1227,13 +1187,6 @@ button,
 
 /* Score preview */
 
-.preview-heading {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--ink);
-}
-
 .preview-total {
   margin: 0;
   font-family: var(--display);
@@ -1259,13 +1212,6 @@ button,
   margin: 0.5rem 0;
   padding-left: 1.25rem;
   font-size: 0.85rem;
-}
-
-.preview-words {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-style: italic;
 }
 
 /* Controls */
@@ -1880,29 +1826,38 @@ button,
   }
 }
 
-/* Desktop play: keep board + rack on one screen. The turn log absorbs leftover
-   sidebar height so controls, scores, and save stay visible without a second
-   page-like scroll. Width ≤1000px stays with css/mobile.css. */
+/* Desktop play (>1000px; narrower layouts live in css/mobile.css): keep board
+   + rack on one screen. The turn log absorbs leftover sidebar height so
+   controls, scores, and save stay visible without a second page-like scroll. */
 
 @media (min-width: 1001px) {
   :root {
     --app-pad-y: 1rem;
     --app-pad-x: 1.25rem;
+    --sidebar-width: 340px;
+    --rack-tile-size: 44px;
     /* Pads, board inset, gaps, rack, start message, think banner, safe area. */
     --game-chrome: calc(
       (2 * var(--app-pad-y))
       + env(safe-area-inset-top, 0px)
       + env(safe-area-inset-bottom, 0px)
-      + 16px
+      + 2 * var(--board-pad)
       + 1.4rem
-      + 5.25rem
+      + 5.75rem
       + 3.35rem
       + 2.4rem
     );
+    /* Largest cell that fits both the window height and the column left of
+       the sidebar. */
     --cell-size: clamp(
       22px,
-      calc((100dvh - var(--game-chrome) - 14 * var(--board-gap)) / 15),
-      36px
+      min(
+        calc((100dvh - var(--game-chrome) - 14 * var(--board-gap)) / 15),
+        calc(
+          (100cqi - var(--sidebar-width) - 1.5rem - 2 * var(--board-pad) - 14 * var(--board-gap)) / 15
+        )
+      ),
+      48px
     );
   }
 
@@ -1951,26 +1906,6 @@ button,
     flex-shrink: 0;
   }
 
-  .board-cell {
-    font-size: clamp(0.55rem, calc(var(--cell-size) * 0.28), 0.7rem);
-  }
-
-  .tile-letter {
-    font-size: clamp(0.7rem, calc(var(--cell-size) * 0.5), 1.15rem);
-  }
-
-  .tile-small .tile-letter {
-    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
-  }
-
-  .tile-points {
-    font-size: clamp(0.5rem, calc(var(--cell-size) * 0.22), 0.65rem);
-  }
-
-  .center-star {
-    font-size: clamp(0.65rem, calc(var(--cell-size) * 0.45), 1rem);
-  }
-
   .direction-hint:empty {
     display: none;
   }
@@ -1981,7 +1916,7 @@ button,
   }
 
   .game-sidebar {
-    width: 340px;
+    width: var(--sidebar-width);
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: 0.6rem;
@@ -2022,9 +1957,7 @@ button,
     padding: 0.6rem 0.7rem;
   }
 
-  .status-scores,
-  .status-bag,
-  .status-last-move {
+  .status-scores {
     margin-top: 0.55rem;
     padding-top: 0.55rem;
   }
@@ -2107,62 +2040,15 @@ button,
   }
 }
 
-/* Responsive
-   Coarse layout fallbacks only. Finer mobile layout, fluid board sizing,
-   and touch-oriented spacing are owned by css/mobile.css (loaded after). */
+/* Touch: bring the small setup-footer controls up to a 44px target. */
 
-@media (max-width: 1000px) {
-  :root {
-    --cell-size: 30px;
+@media (pointer: coarse) {
+  .setup-offline-install {
+    min-height: 44px;
   }
 
-  .game-main {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .game-sidebar {
-    width: 100%;
-    max-width: calc(15 * var(--cell-size) + 14 * var(--board-gap) + 16px);
-  }
-}
-
-@media (max-width: 560px) {
-  /* Intentionally no --cell-size or tile glyph sizes here.
-     mobile.css owns fluid board sizing and scaled letter/points type. */
-
-  .letterloom-app {
-    padding: 0.75rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .setup-card {
-    grid-template-columns: 1fr;
-  }
-
-  .setup-main {
-    padding: 1.8rem 1.4rem;
-  }
-
-  .setup-side {
-    border-left: none;
-    border-top: 1px solid var(--rule);
-    padding: 1.6rem 22px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .setup-help-btn {
-    width: 100%;
-  }
-
-  .setup-human-fields {
-    grid-template-columns: 1fr;
-  }
-
-  .setup-footer {
-    padding: 0.55rem 1.1rem;
+  .setup-footer-github {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
