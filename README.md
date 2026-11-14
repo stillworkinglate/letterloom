@@ -1,6 +1,6 @@
 # Letterloom
 
-Two-player crossword tiles on a 15×15 board. Same screen, take turns — or play the computer.
+Two-player crossword tiles on a 15×15 board. Same screen, take turns — or play the computer, or a friend on another phone.
 
 **[Play](https://stillworkinglate.github.io/letterloom/)** · [Source](https://github.com/stillworkinglate/letterloom)
 
@@ -42,6 +42,18 @@ A new version downloads in the background the next time the game opens online, a
 |--------|---------|
 | DL / TL | Double / triple letter |
 | DW / TW | Double / triple word (center ★ is DW) |
+
+## Play online
+
+Choose **Play online**, enter your name, and start. You get a 6-character code and a link. Send the link, or have the other player choose **Play online** and type the code. Each phone shows only its own rack, and the board updates a few seconds after each move.
+
+- You can close the game and come back. Open games are listed on the start screen under **Online games**. Games are kept for 30 days after the last move.
+- You can play your first turn before the other player has joined.
+- To carry on from a different device, open the code there and choose which player you are.
+- There is no **Take Back**, **Rematch**, or **Save** in an online game.
+- Online play needs a connection. Everything else still works offline.
+
+Online games pass through a small relay you host yourself. Until it is set up, **Play online** is hidden. See [relay/README.md](relay/README.md).
 
 ## Save
 
