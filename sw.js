@@ -23,6 +23,7 @@ const PRECACHE = [
   'js/ai.js',
   'js/ai-worker.js',
   'js/i18n.js',
+  'js/online.js',
   'js/ui.js',
   'js/offline.js',
   'data/words.txt',

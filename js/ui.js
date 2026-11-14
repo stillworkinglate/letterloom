@@ -7,6 +7,24 @@
   const Engine = global.LetterloomEngine;
   const Storage = global.LetterloomStorage;
   const I18n = global.LetterloomI18n;
+  const Online = global.LetterloomOnline;
+
+  /**
+   * In an online game, the seat this device plays. While the game is running,
+   * the other seat's racks and exchanged letters stay out of the logs.
+   * @type {number|null}
+   */
+  let privateSeat = null;
+
+  function hidesTiles(entry, game) {
+    return (
+      privateSeat !== null &&
+      Boolean(game) &&
+      game.status === 'playing' &&
+      Boolean(entry) &&
+      entry.playerIndex !== privateSeat
+    );
+  }
 
   function t(key, vars) {
     return I18n && I18n.t ? I18n.t(key, vars) : key;
@@ -123,7 +141,7 @@
     }
 
     if (entry.type === 'exchange') {
-      const letters = entry.exchangeLetters ? ` (${entry.exchangeLetters})` : '';
+      const letters = entry.exchangeLetters && !hidesTiles(entry, game) ? ` (${entry.exchangeLetters})` : '';
       return t('exchanged', { turn, name, n: entry.exchange, letters });
     }
 
@@ -164,7 +182,7 @@
       if (entry.tilesPlayed === 7) bits.push(t('bingo'));
       if (entry.scoreAfter != null) bits.push(t('nowScore', { n: entry.scoreAfter }));
     }
-    if (entry.rackBefore && entry.rackBefore.length) {
+    if (entry.rackBefore && entry.rackBefore.length && !hidesTiles(entry, game)) {
       bits.push(t('rack', { letters: formatRackSnapshot(entry.rackBefore) }));
     }
     return bits.length ? `${line} · ${bits.join(' · ')}` : line;
@@ -862,6 +880,9 @@
       if (game.mode === 'computer' && index === game.computerSeat) {
         nameWrap.appendChild(createElement('span', 'cpu-badge', 'CPU'));
       }
+      if (options.youIndex === index) {
+        nameWrap.appendChild(createElement('span', 'cpu-badge', t('you')));
+      }
       if (isCurrent) {
         nameWrap.appendChild(createElement('span', 'sr-only', t('currentTurn')));
       }
@@ -1062,7 +1083,7 @@
         'p',
         'sr-only',
         locked
-          ? t('playLockedCpu')
+          ? state.lockedReason || t('playLockedCpu')
           : t('playLockedInvalid')
       );
       playHint.id = 'play-disabled-reason';
@@ -1235,6 +1256,50 @@
       main.appendChild(createElement('hr', 'setup-divider'));
     }
 
+    const onlineGames = callbacks.onlineGames || [];
+
+    if (onlineGames.length > 0) {
+      const onlineSection = createElement('div', 'setup-saves');
+      onlineSection.appendChild(createElement('h2', 'setup-saves-title', t('onlineGames')));
+      const list = createElement('ul', 'setup-saves-list');
+      onlineGames.forEach((room) => {
+        const item = createElement('li', 'setup-save-item');
+        const names = (room.names || []).join(' vs ') || room.code;
+        const info = createElement('div', 'setup-save-info');
+        info.appendChild(createElement('span', 'setup-save-name', names));
+        info.appendChild(
+          createElement(
+            'span',
+            'setup-save-status',
+            room.ended
+              ? t('gameOverStatus')
+              : room.myTurn
+                ? t('onlineYourTurn')
+                : t('onlineTheirTurn')
+          )
+        );
+        info.appendChild(createElement('span', 'setup-save-meta', t('onlineCode', { code: room.code })));
+        item.appendChild(info);
+
+        const actions = createElement('div', 'setup-save-actions');
+        const openBtn = createElement('button', 'btn btn-primary btn-small', t('onlineOpen'));
+        openBtn.type = 'button';
+        openBtn.setAttribute('aria-label', t('onlineOpenGame', { name: names }));
+        openBtn.addEventListener('click', () => callbacks.onJoinOnline && callbacks.onJoinOnline(room.code));
+        actions.appendChild(openBtn);
+        const removeBtn = createElement('button', 'btn btn-small btn-danger', t('onlineRemove'));
+        removeBtn.type = 'button';
+        removeBtn.setAttribute('aria-label', t('onlineRemoveGame', { name: names }));
+        removeBtn.addEventListener('click', () => callbacks.onForgetOnline && callbacks.onForgetOnline(room.code, names));
+        actions.appendChild(removeBtn);
+        item.appendChild(actions);
+        list.appendChild(item);
+      });
+      onlineSection.appendChild(list);
+      main.appendChild(onlineSection);
+      main.appendChild(createElement('hr', 'setup-divider'));
+    }
+
     const form = createElement('form', 'setup-form');
 
     const langField = createElement('fieldset', 'setup-fieldset');
@@ -1285,6 +1350,16 @@
       points: letterPoints('C'),
       checked: false,
     });
+    if (callbacks.onlineEnabled) {
+      appendTileChoice(modeRow, {
+        name: 'game-mode',
+        value: 'online',
+        label: t('playOnline'),
+        letter: 'O',
+        points: letterPoints('O'),
+        checked: false,
+      });
+    }
     modeField.appendChild(modeRow);
     form.appendChild(modeField);
 
@@ -1397,13 +1472,63 @@
     computerFields.appendChild(turnOrderField);
     form.appendChild(computerFields);
 
+    const onlineFields = createElement('div', 'setup-online-fields hidden');
+    const onlineNameField = createElement('div', 'form-field');
+    const onlineNameLabel = createElement('label', null, t('yourName'));
+    onlineNameLabel.htmlFor = 'online-name';
+    onlineNameField.appendChild(onlineNameLabel);
+    const onlineNameInput = createElement('input', 'setup-input');
+    onlineNameInput.type = 'text';
+    onlineNameInput.id = 'online-name';
+    onlineNameInput.name = 'onlineName';
+    onlineNameInput.autocomplete = 'nickname';
+    onlineNameInput.maxLength = 20;
+    onlineNameInput.value = callbacks.onlineName || '';
+    onlineNameField.appendChild(onlineNameInput);
+    onlineFields.appendChild(onlineNameField);
+    onlineFields.appendChild(createElement('p', 'setup-computer-hint', t('onlineHint')));
+
+    const joinField = createElement('div', 'form-field');
+    const joinLabel = createElement('label', null, t('onlineHaveCode'));
+    joinLabel.htmlFor = 'online-code';
+    joinField.appendChild(joinLabel);
+    const joinRow = createElement('div', 'setup-online-join');
+    const joinInput = createElement('input', 'setup-input');
+    joinInput.type = 'text';
+    joinInput.id = 'online-code';
+    joinInput.name = 'onlineCode';
+    joinInput.autocomplete = 'off';
+    joinInput.autocapitalize = 'characters';
+    joinInput.spellcheck = false;
+    joinInput.maxLength = 12;
+    joinRow.appendChild(joinInput);
+    const joinBtn = createElement('button', 'btn', t('onlineJoin'));
+    joinBtn.type = 'button';
+    const submitJoin = () => {
+      if (callbacks.onJoinOnline) callbacks.onJoinOnline(joinInput.value, onlineNameInput.value.trim());
+    };
+    joinBtn.addEventListener('click', submitJoin);
+    joinInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      submitJoin();
+    });
+    joinRow.appendChild(joinBtn);
+    joinField.appendChild(joinRow);
+    onlineFields.appendChild(joinField);
+    form.appendChild(onlineFields);
+
     function syncModeFields() {
       const mode = form.querySelector('input[name="game-mode"]:checked');
       const vsComputer = mode && mode.value === 'computer';
+      const isOnline = mode && mode.value === 'online';
       computerFields.classList.toggle('hidden', !vsComputer);
-      humanFields.classList.toggle('hidden', vsComputer);
-      input1.disabled = vsComputer;
-      input2.disabled = vsComputer;
+      humanFields.classList.toggle('hidden', vsComputer || isOnline);
+      onlineFields.classList.toggle('hidden', !isOnline);
+      onlineNameInput.disabled = !isOnline;
+      joinInput.disabled = !isOnline;
+      input1.disabled = vsComputer || isOnline;
+      input2.disabled = vsComputer || isOnline;
       humanNameInput.disabled = !vsComputer;
       form.querySelectorAll('input[name="turn-order"]').forEach((radio) => {
         radio.disabled = !vsComputer;
@@ -1434,6 +1559,13 @@
           coachMode: Boolean(coachCheck.checked),
           language: currentLanguage(),
         });
+        return;
+      }
+
+      if (mode === 'online') {
+        if (callbacks.onStartOnline) {
+          callbacks.onStartOnline(onlineNameInput.value.trim() || t('playerN', { n: 1 }), currentLanguage());
+        }
         return;
       }
 
@@ -1546,7 +1678,9 @@
         : t('savedNamed', { name: callbacks.saveName })
       : t('notSavedYet');
 
-    container.appendChild(createElement('p', 'save-status', statusText));
+    container.appendChild(
+      createElement('p', 'save-status', callbacks.online ? callbacks.online.statusText : statusText)
+    );
 
     const actions = createElement('div', 'save-actions');
 
@@ -1560,11 +1694,20 @@
       actions.appendChild(shuffleBtn);
     }
 
-    const saveBtn = createElement('button', 'btn btn-primary', t('save'));
-    saveBtn.type = 'button';
-    saveBtn.dataset.focusId = 'save';
-    saveBtn.addEventListener('click', () => callbacks.onSave && callbacks.onSave());
-    actions.appendChild(saveBtn);
+    if (callbacks.online) {
+      const inviteBtn = createElement('button', 'btn btn-primary', t('onlineInvite'));
+      inviteBtn.type = 'button';
+      inviteBtn.dataset.focusId = 'invite';
+      inviteBtn.setAttribute('aria-haspopup', 'dialog');
+      inviteBtn.addEventListener('click', () => callbacks.online.onInvite());
+      actions.appendChild(inviteBtn);
+    } else {
+      const saveBtn = createElement('button', 'btn btn-primary', t('save'));
+      saveBtn.type = 'button';
+      saveBtn.dataset.focusId = 'save';
+      saveBtn.addEventListener('click', () => callbacks.onSave && callbacks.onSave());
+      actions.appendChild(saveBtn);
+    }
 
     const newGameBtn = createElement('button', 'btn', t('new'));
     newGameBtn.type = 'button';
@@ -1573,12 +1716,14 @@
     newGameBtn.addEventListener('click', () => callbacks.onNewGame && callbacks.onNewGame());
     actions.appendChild(newGameBtn);
 
-    const exportBtn = createElement('button', 'btn btn-secondary', t('export'));
-    exportBtn.type = 'button';
-    exportBtn.dataset.focusId = 'export';
-    exportBtn.setAttribute('aria-label', t('export'));
-    exportBtn.addEventListener('click', () => callbacks.onExport && callbacks.onExport());
-    actions.appendChild(exportBtn);
+    if (!callbacks.online) {
+      const exportBtn = createElement('button', 'btn btn-secondary', t('export'));
+      exportBtn.type = 'button';
+      exportBtn.dataset.focusId = 'export';
+      exportBtn.setAttribute('aria-label', t('export'));
+      exportBtn.addEventListener('click', () => callbacks.onExport && callbacks.onExport());
+      actions.appendChild(exportBtn);
+    }
 
     if (callbacks.onHelp) {
       const helpBtn = createElement('button', 'btn', t('help'));
@@ -1732,6 +1877,7 @@
     clearElement(root);
     root.classList.add('letterloom-app');
     applyLargePrintClass(isLargePrintOn());
+    if (Online) Online.configure({ relayUrl: options.relayUrl });
 
     /** @type {object|null} */
     let game = null;
@@ -2011,7 +2157,14 @@
         cancelBtn.addEventListener('click', () => close(config.mode === 'confirm' ? false : null));
         actions.appendChild(cancelBtn);
 
-        if (config.mode !== 'letters' && config.mode !== 'info') {
+        if (config.mode === 'choice') {
+          (config.choices || []).forEach((choice) => {
+            const choiceBtn = createElement('button', 'btn btn-primary', choice.label);
+            choiceBtn.type = 'button';
+            choiceBtn.addEventListener('click', () => close(choice.value));
+            actions.appendChild(choiceBtn);
+          });
+        } else if (config.mode !== 'letters' && config.mode !== 'info') {
           const confirmBtn = createElement(
             'button',
             config.danger ? 'btn btn-danger' : 'btn btn-primary',
@@ -2129,7 +2282,7 @@
 
     function isHumanLocked() {
       return Boolean(
-        computerThinking || coachBusy || (game && Engine.isComputerTurn(game))
+        computerThinking || coachBusy || (game && Engine.isComputerTurn(game)) || isOpponentTurn()
       );
     }
 
@@ -2143,7 +2296,8 @@
 
     function captureTakeBackPoint() {
       const previous = takeBackSnapshot;
-      if (!game) {
+      // No take-backs online: the other player may already have seen the move.
+      if (!game || online) {
         takeBackSnapshot = null;
         return previous;
       }
@@ -2168,6 +2322,397 @@
     function humanPlayerIndex() {
       if (!game || game.mode !== 'computer') return game ? game.currentPlayerIndex : 0;
       return game.computerSeat === 0 ? 1 : 0;
+    }
+
+    // ---- Online play: one game shared by two devices through the relay ----
+
+    /**
+     * The online game this device is in, or null.
+     * `version` is the relay's version of the state last seen here, and
+     * `syncedProgress` how far that state had advanced. `unsent` means this
+     * device has a move the relay does not have yet.
+     */
+    let online = null;
+
+    function onlineEnabled() {
+      return Boolean(Online && Online.isConfigured());
+    }
+
+    function opponentSeat() {
+      return online && online.seat === 0 ? 1 : 0;
+    }
+
+    function isOpponentTurn() {
+      return Boolean(
+        online && game && game.status === 'playing' && game.currentPlayerIndex !== online.seat
+      );
+    }
+
+    function rememberOnlineRoom() {
+      if (!online || !game) return;
+      Online.rememberRoom(online.code, {
+        seat: online.seat,
+        names: game.players.map((player) => player.name),
+        myTurn: game.status === 'playing' && game.currentPlayerIndex === online.seat,
+        ended: game.status === 'ended',
+      });
+    }
+
+    function leaveOnline() {
+      if (!online) return;
+      if (online.timer) global.clearTimeout(online.timer);
+      online = null;
+      privateSeat = null;
+    }
+
+    function scheduleOnlineTick(delay) {
+      const session = online;
+      if (!session) return;
+      if (session.timer) global.clearTimeout(session.timer);
+      session.timer = null;
+      // A finished game that the relay already has needs no more traffic.
+      if (game && game.status === 'ended' && !session.unsent) return;
+      const wait =
+        delay != null
+          ? delay
+          : Online.pollDelay({
+              unsent: session.unsent,
+              waiting: isOpponentTurn() || !session.joined[opponentSeat()],
+              idleMs: Date.now() - session.lastChangeAt,
+            });
+      session.timer = global.setTimeout(onlineTick, wait);
+    }
+
+    /** One exchange with the relay: send our move if we have one, otherwise ask for theirs. */
+    async function onlineTick() {
+      const session = online;
+      if (!session) return;
+      session.timer = null;
+      // A hidden page stops asking; it catches up when it is shown again.
+      if (global.document.hidden || session.busy) return;
+      session.busy = true;
+      let connected = true;
+      try {
+        if (session.unsent) {
+          await sendOnlineState(session);
+        } else {
+          const room = await Online.fetchRoom(session.code, session.version);
+          if (session !== online) return;
+          if (room.missing) {
+            closeGame(t('onlineGone'), session.code);
+            return;
+          }
+          // If a move was made here while we were asking, sending it settles
+          // which state stands.
+          if (!room.unchanged && !session.unsent) receiveOnlineState(room.v, room.state);
+        }
+      } catch (err) {
+        connected = false;
+      } finally {
+        session.busy = false;
+      }
+      if (session !== online) return;
+      if (session.connected !== connected) {
+        session.connected = connected;
+        refresh();
+      }
+      scheduleOnlineTick(connected && session.unsent ? 0 : null);
+    }
+
+    async function sendOnlineState(session) {
+      const result = await Online.pushRoom(
+        session.code,
+        session.version,
+        Online.buildState(game, session.joined)
+      );
+      if (session !== online) return;
+      if (result.ok) {
+        session.version = result.v;
+        session.syncedProgress = Online.progressOf(game);
+        session.unsent = false;
+        refresh();
+        return;
+      }
+      if (result.missing) {
+        closeGame(t('onlineGone'), session.code);
+        return;
+      }
+      const remote = Online.readState(result.state);
+      if (!remote) throw new Error('Unreadable online game.');
+      if (Online.progressOf(remote.game) === session.syncedProgress) {
+        // Only a name changed over there (the other player joined while we
+        // were moving). Keep our move, take their name, and send again.
+        adoptSeatInfo(remote);
+        session.version = result.v;
+        return;
+      }
+      // The game moved on without this device, which means the same seat is
+      // open somewhere else. What the relay has stands.
+      session.unsent = false;
+      receiveOnlineState(result.v, result.state, { replaced: true });
+    }
+
+    function adoptSeatInfo(remote) {
+      const other = opponentSeat();
+      game.players[other].name = remote.game.players[other].name;
+      online.joined = [online.joined[0] || remote.joined[0], online.joined[1] || remote.joined[1]];
+    }
+
+    function receiveOnlineState(version, rawState, received = {}) {
+      const remote = Online.readState(rawState);
+      if (!remote || !online || !game) return;
+      const session = online;
+      const other = opponentSeat();
+      session.version = version;
+      session.lastChangeAt = Date.now();
+
+      if (!received.replaced && Online.progressOf(remote.game) === Online.progressOf(game)) {
+        // Same position: only who has joined, or a name, changed. Keep the
+        // tiles being placed.
+        const wasJoined = session.joined[other];
+        adoptSeatInfo(remote);
+        if (!wasJoined && session.joined[other]) {
+          showMessage(t('onlineJoined', { name: game.players[other].name }));
+        }
+        rememberOnlineRoom();
+        refresh();
+        return;
+      }
+
+      game = remote.game;
+      Engine.normalizeGameMeta(game);
+      game.dictionary = options.dictionary || null;
+      session.joined = remote.joined;
+      session.syncedProgress = Online.progressOf(game);
+      resetTurnState();
+      rememberOnlineRoom();
+
+      if (game.status === 'ended') {
+        showGameOver();
+        refresh();
+        return;
+      }
+      const last = game.history && game.history[game.history.length - 1];
+      showMessage(received.replaced ? t('onlineReplaced') : last ? formatHistoryLine(last, game) : '');
+      refresh();
+    }
+
+    function enterOnlineGame(state, room) {
+      cancelComputerTurn();
+      clearTakeBack();
+      leaveOnline();
+      game = state.game;
+      Engine.normalizeGameMeta(game);
+      if (I18n) I18n.setLanguage(game.language);
+      game.dictionary = options.dictionary || null;
+      resetTurnState();
+      activeSaveId = null;
+      activeSaveName = null;
+      lastSavedAt = null;
+      online = {
+        code: room.code,
+        seat: room.seat,
+        version: room.version,
+        joined: state.joined,
+        syncedProgress: Online.progressOf(game),
+        unsent: false,
+        busy: false,
+        connected: true,
+        timer: null,
+        lastChangeAt: Date.now(),
+      };
+      privateSeat = online.seat;
+      rememberOnlineRoom();
+
+      setupEl.classList.add('hidden');
+      gameEl.classList.remove('hidden');
+      overlayEl.classList.add('hidden');
+      gameEl.inert = game.status === 'ended';
+      setSetupActive(false);
+      boardFocus = { row: Engine.CENTER_ROW, col: Engine.CENTER_COL };
+      lastAnnouncedTurn = '';
+
+      if (game.status === 'ended') {
+        showGameOver();
+      } else {
+        showMessage(
+          isOpponentTurn()
+            ? t('onlineWaitingTurn', { name: game.players[opponentSeat()].name })
+            : t('onlineYourTurn')
+        );
+      }
+      refresh();
+      scheduleOnlineTick();
+    }
+
+    function onlineFailure(err) {
+      showSetup(t(err && err.kind === 'network' ? 'onlineNoConnection' : 'onlineFailed'), 'online');
+    }
+
+    async function startOnlineGame(name, language) {
+      if (!onlineEnabled()) return;
+      Online.setPlayerName(name);
+      if (I18n) I18n.setLanguage(language);
+      try {
+        const dictionary = await loadDictionary(language);
+        activateDictionary(dictionary);
+        // The second name is a placeholder until the other player joins.
+        const fresh = Engine.createGame([name, t('playerN', { n: 2 })], {
+          dictionary,
+          language,
+          mode: 'human',
+        });
+        const state = Online.buildState(fresh, [true, false]);
+        const room = await Online.createRoom(state);
+        enterOnlineGame(state, { code: room.code, seat: 0, version: room.v });
+        showInvite();
+      } catch (err) {
+        onlineFailure(err);
+      }
+    }
+
+    /**
+     * Opens an online game by code: takes the free seat the first time, and
+     * goes back to this device's own seat after that.
+     */
+    async function joinOnlineGame(rawCode, nameHint) {
+      if (!onlineEnabled()) return;
+      const code = Online.normalizeCode(rawCode);
+      if (!code) {
+        showSetup(t('onlineBadCode'), 'online');
+        return;
+      }
+      try {
+        const room = await Online.fetchRoom(code, 0);
+        if (room.missing) {
+          Online.forgetRoom(code);
+          showSetup(t('onlineGone'), 'online');
+          return;
+        }
+        let state = Online.readState(room.state);
+        let version = room.v;
+        if (!state) {
+          showSetup(t('onlineUnreadable'), 'online');
+          return;
+        }
+
+        const remembered = Online.getRoom(code);
+        let seat = remembered ? remembered.seat : null;
+
+        if (seat === null && !state.joined[1]) {
+          const name =
+            nameHint ||
+            (await openModal({
+              mode: 'prompt',
+              title: t('onlineJoinTitle'),
+              message: t('onlineJoinPrompt', { name: state.game.players[0].name }),
+              inputLabel: t('yourName'),
+              inputDefault: Online.getPlayerName() || t('playerN', { n: 2 }),
+              maxLength: 20,
+              confirmLabel: t('onlineJoin'),
+              cancelLabel: t('cancel'),
+            }));
+          if (name === null) return;
+          Online.setPlayerName(name);
+          seat = 1;
+          for (let attempt = 0; seat === 1; attempt += 1) {
+            state.game.players[1].name = name;
+            state.joined[1] = true;
+            const result = await Online.pushRoom(code, version, state);
+            if (result.ok) {
+              version = result.v;
+              break;
+            }
+            // The first player moved while we were joining: join their newer state.
+            state = result.missing ? null : Online.readState(result.state);
+            if (!state || attempt >= 3) throw new Error('Could not join online game.');
+            version = result.v;
+            if (state.joined[1]) seat = null;
+          }
+        }
+
+        if (seat === null) {
+          // Both seats are taken and this device holds neither, so this is
+          // one of the two players coming back on another device.
+          seat = await openModal({
+            mode: 'choice',
+            title: t('onlineWhoTitle'),
+            message: t('onlineWhoPrompt'),
+            choices: state.game.players.map((player, index) => ({ label: player.name, value: index })),
+            cancelLabel: t('cancel'),
+          });
+          if (seat === null) return;
+        }
+
+        activateDictionary(await loadDictionary(state.game.language || 'en'));
+        enterOnlineGame(state, { code, seat, version });
+      } catch (err) {
+        onlineFailure(err);
+      }
+    }
+
+    async function forgetOnlineGame(code, names) {
+      const confirmed = await openModal({
+        mode: 'confirm',
+        title: t('onlineRemoveTitle'),
+        message: t('onlineRemoveConfirm', { name: names, code }),
+        confirmLabel: t('onlineRemove'),
+        cancelLabel: t('cancel'),
+        danger: true,
+      });
+      if (!confirmed) return;
+      Online.forgetRoom(code);
+      showSetup();
+    }
+
+    function showInvite() {
+      if (!online) return;
+      const code = online.code;
+      const url = Online.inviteUrl(code);
+      const body = createElement('div', 'invite-dialog');
+      body.appendChild(createElement('p', 'invite-help', t('onlineInviteHelp')));
+      const codeEl = createElement('p', 'invite-code', code);
+      codeEl.setAttribute('aria-label', t('onlineCode', { code: code.split('').join(' ') }));
+      body.appendChild(codeEl);
+      body.appendChild(createElement('p', 'invite-url', url));
+      const status = createElement('p', 'invite-status');
+      status.setAttribute('role', 'status');
+      const shareBtn = createElement('button', 'btn btn-primary', t('onlineShareLink'));
+      shareBtn.type = 'button';
+      shareBtn.addEventListener('click', async () => {
+        const nav = global.navigator || {};
+        if (typeof nav.share === 'function') {
+          try {
+            await nav.share({ title: 'Letterloom', text: t('onlineShareText'), url });
+            return;
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;
+          }
+        }
+        try {
+          await nav.clipboard.writeText(url);
+          status.textContent = t('onlineLinkCopied');
+        } catch (err) {
+          status.textContent = t('onlineCopyManually');
+        }
+      });
+      body.appendChild(shareBtn);
+      body.appendChild(status);
+      openModal({
+        mode: 'info',
+        title: t('onlineInviteTitle'),
+        body,
+        cancelLabel: t('close'),
+      });
+    }
+
+    if (global.document && global.document.addEventListener) {
+      global.document.addEventListener('visibilitychange', () => {
+        if (online && !global.document.hidden) scheduleOnlineTick(0);
+      });
+      global.addEventListener('online', () => {
+        if (online) scheduleOnlineTick(0);
+      });
     }
 
     function cancelComputerTurn() {
@@ -2667,6 +3212,13 @@
     function afterHumanCommit(result, review) {
       resetTurnState();
 
+      if (online) {
+        online.unsent = true;
+        online.lastChangeAt = Date.now();
+        rememberOnlineRoom();
+        scheduleOnlineTick(0);
+      }
+
       if (result && result.endResult && result.endResult.ended) {
         if (review) {
           sendCoachRequest('review', review.snapshot, {
@@ -3116,7 +3668,8 @@
     }
 
     async function handleNewGame() {
-      if (game && game.status === 'playing' && !activeSaveId) {
+      // An online game stays on the relay, so leaving it loses nothing.
+      if (game && game.status === 'playing' && !activeSaveId && !online) {
         const confirmed = await openModal({
           mode: 'confirm',
           title: t('startNewTitle'),
@@ -3126,7 +3679,13 @@
         });
         if (!confirmed) return;
       }
+      closeGame();
+    }
 
+    /** Back to the setup screen. With `goneCode`, that online game no longer exists. */
+    function closeGame(setupMessage, goneCode) {
+      if (goneCode) Online.forgetRoom(goneCode);
+      leaveOnline();
       cancelComputerTurn();
       clearTakeBack();
       lastFocus = null;
@@ -3140,7 +3699,7 @@
       overlayEl.removeAttribute('aria-modal');
       gameEl.inert = false;
       gameEl.classList.add('hidden');
-      showSetup();
+      showSetup(setupMessage, setupMessage ? 'online' : undefined);
     }
 
     function handleExport() {
@@ -3161,7 +3720,7 @@
       }
       renderGameOver(overlayEl, game, {
         onNewGame: handleNewGame,
-        onRematch: handleRematch,
+        onRematch: online ? null : handleRematch,
         onTakeBack: takeBackSnapshot ? handleTakeBack : null,
         onReplay: handleReplay,
       });
@@ -3188,17 +3747,34 @@
       const reviewing = Boolean(coachBusy && coachKind === 'review');
       const hinting = Boolean(coachBusy && coachKind === 'hint');
       const thinking = computerThinking || (Engine.isComputerTurn(game) && !reviewing && !hinting);
-      const rackPlayer = game.mode === 'computer' ? humanPlayerIndex() : game.currentPlayerIndex;
+      const rackPlayer = online
+        ? online.seat
+        : game.mode === 'computer'
+          ? humanPlayerIndex()
+          : game.currentPlayerIndex;
+      let onlineNote = '';
+      if (online && game.status === 'playing') {
+        const theirTurn = isOpponentTurn();
+        if (!online.connected) {
+          onlineNote = t('onlineReconnecting');
+        } else if (!online.joined[opponentSeat()]) {
+          onlineNote = t(theirTurn ? 'onlineWaitingJoin' : 'onlineWaitingJoinYourTurn');
+        } else if (theirTurn) {
+          onlineNote = t('onlineWaitingTurn', { name: game.players[opponentSeat()].name });
+        }
+      }
       gameEl.setAttribute('aria-busy', locked ? 'true' : 'false');
       root.classList.toggle('computer-thinking', locked);
-      thinkBanner.classList.toggle('hidden', !locked);
-      thinkBanner.textContent = reviewing
+      thinkBanner.classList.toggle('hidden', !locked && !onlineNote);
+      const bannerText = reviewing
         ? t('checkingBest')
         : hinting
           ? t('lookingForPlay')
           : thinking
             ? t('computerThinking', { name: game.players[game.currentPlayerIndex].name })
-            : '';
+            : onlineNote;
+      // Rewriting unchanged text would make screen readers repeat it.
+      if (thinkBanner.textContent !== bannerText) thinkBanner.textContent = bannerText;
 
       const resolved = resolvePlacementDirection(game, pendingPlacements);
       const direction = resolved.direction;
@@ -3227,6 +3803,7 @@
 
       renderStatus(statusContainer, game, {
         thinking,
+        youIndex: online ? online.seat : null,
         onBagClick: handleUnseenTiles,
         onReplay: handleReplay,
       });
@@ -3270,6 +3847,7 @@
           coachBusy,
           bagCount: game.bag.length,
           locked,
+          lockedReason: isOpponentTurn() ? onlineNote : '',
           message: thinking
             ? t('computerThinking', { name: game.players[game.currentPlayerIndex].name })
             : coachBusy && coachKind === 'review'
@@ -3288,6 +3866,14 @@
         onSave: handleSave,
         onNewGame: handleNewGame,
         onExport: handleExport,
+        online: online
+          ? {
+              statusText: online.unsent
+                ? t('onlineSending', { code: online.code })
+                : t('onlineStatus', { code: online.code }),
+              onInvite: showInvite,
+            }
+          : null,
         onHelp: handleHelp,
         onStats: handleLocalStats,
         onShuffle: shuffleRack,
@@ -3328,7 +3914,7 @@
     function handleUnseenTiles() {
       if (!game || !Engine.getUnseenTiles) return;
       const unseen = Engine.getUnseenTiles(game, {
-        viewerIndex: unseenViewerIndex(game),
+        viewerIndex: online ? online.seat : unseenViewerIndex(game),
         revealRacks: game.status === 'ended',
       });
       const body = createElement('div', 'unseen-dialog');
@@ -3424,6 +4010,12 @@
         },
         onHelp: handleHelp,
         onStats: handleLocalStats,
+        onlineEnabled: onlineEnabled(),
+        onlineGames: onlineEnabled() ? Online.listRooms() : [],
+        onlineName: Online ? Online.getPlayerName() : '',
+        onStartOnline: startOnlineGame,
+        onJoinOnline: joinOnlineGame,
+        onForgetOnline: forgetOnlineGame,
         onLanguageChange: (lang) => {
           if (I18n) I18n.setLanguage(lang);
           showSetup();
@@ -3432,7 +4024,9 @@
       };
     }
 
-    async function showSetup(importError) {
+    /** @param {string} [importError] message to show; `errorKind` 'online' when it is not about a save file */
+    async function showSetup(importError, errorKind) {
+      leaveOnline();
       cancelComputerTurn();
       setSetupActive(true);
       setupEl.classList.remove('hidden');
@@ -3478,7 +4072,7 @@
           err.setAttribute('role', 'alert');
           const tagline = main.querySelector('.setup-tagline');
           main.insertBefore(err, tagline || main.children[1] || null);
-          const importInput = setupEl.querySelector('#import-save-file');
+          const importInput = errorKind === 'online' ? null : setupEl.querySelector('#import-save-file');
           if (importInput) {
             importInput.setAttribute('aria-invalid', 'true');
             importInput.setAttribute('aria-describedby', 'import-error');
@@ -3488,7 +4082,14 @@
       }
     }
 
-    showSetup();
+    // An invite link opens straight into its game.
+    const invitedCode = onlineEnabled() ? Online.codeFromLocation() : null;
+    if (invitedCode && global.history && global.history.replaceState) {
+      global.history.replaceState(null, '', global.location.pathname);
+    }
+    showSetup().then(() => {
+      if (invitedCode) joinOnlineGame(invitedCode);
+    });
 
     return {
       getGame: () => game,
