@@ -31,7 +31,7 @@
     // Online play needs the relay in relay/ deployed (see relay/README.md).
     // Paste its address here, ending in /api/room. While this is empty, the
     // Play online choice stays hidden.
-    var RELAY_URL = '';
+    var RELAY_URL = 'https://letterloom-relay.vercel.app/api/room';
     var isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
     LetterloomOffline.register('sw.js');
