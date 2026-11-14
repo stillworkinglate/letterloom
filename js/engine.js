@@ -343,11 +343,6 @@
     return a.row - b.row;
   }
 
-  function getBoardLetter(board, row, col) {
-    const cell = board[row][col];
-    return cell ? cell.letter : null;
-  }
-
   function placementKey(row, col) {
     return `${row},${col}`;
   }
